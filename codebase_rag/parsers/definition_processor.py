@@ -9,9 +9,11 @@ from .. import constants as cs
 from .. import logs as ls
 from ..types_defs import ASTNode, FunctionRegistryTrieProtocol, SimpleNameLookup
 from .class_ingest import ClassIngestMixin
+from .css import CssIngestMixin
 from .dependency_parser import parse_dependencies
 from .function_ingest import FunctionIngestMixin
 from .handlers import get_handler
+from .html import HtmlIngestMixin
 from .js_ts.ingest import JsTsIngestMixin
 from .utils import safe_decode_with_fallback
 
@@ -26,6 +28,8 @@ class DefinitionProcessor(
     FunctionIngestMixin,
     ClassIngestMixin,
     JsTsIngestMixin,
+    CssIngestMixin,
+    HtmlIngestMixin,
 ):
     _handler: LanguageHandler
 
@@ -135,6 +139,13 @@ class DefinitionProcessor(
                 root_node, module_qn, language, queries
             )
             self._ingest_prototype_inheritance(root_node, module_qn, language, queries)
+
+            self._ingest_css_rules(root_node, module_qn, language, queries)
+            self._ingest_scss_variables(root_node, module_qn, language, queries)
+            self._ingest_scss_at_rules(root_node, module_qn, language, queries)
+
+            self._ingest_html_elements(root_node, module_qn, language, queries)
+            self._ingest_stylesheet_references(root_node, module_qn, language, queries)
 
             return (root_node, language)
 

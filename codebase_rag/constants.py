@@ -345,6 +345,12 @@ class NodeLabel(StrEnum):
     MODULE_INTERFACE = "ModuleInterface"
     MODULE_IMPLEMENTATION = "ModuleImplementation"
     EXTERNAL_PACKAGE = "ExternalPackage"
+    CSS_RULE = "CssRule"
+    CSS_SELECTOR = "CssSelector"
+    HTML_ELEMENT = "HtmlElement"
+    SCSS_VARIABLE = "ScssVariable"
+    SCSS_MIXIN = "ScssMixin"
+    SCSS_FUNCTION = "ScssFunction"
 
 
 _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
@@ -363,6 +369,12 @@ _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
     NodeLabel.MODULE_INTERFACE: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.MODULE_IMPLEMENTATION: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.EXTERNAL_PACKAGE: UniqueKeyType.NAME,
+    NodeLabel.CSS_RULE: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.CSS_SELECTOR: UniqueKeyType.NAME,
+    NodeLabel.HTML_ELEMENT: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.SCSS_VARIABLE: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.SCSS_MIXIN: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.SCSS_FUNCTION: UniqueKeyType.QUALIFIED_NAME,
 }
 
 _missing_keys = set(NodeLabel) - set(_NODE_LABEL_UNIQUE_KEYS.keys())
@@ -389,6 +401,13 @@ class RelationshipType(StrEnum):
     OVERRIDES = "OVERRIDES"
     CALLS = "CALLS"
     DEPENDS_ON_EXTERNAL = "DEPENDS_ON_EXTERNAL"
+    STYLES = "STYLES"
+    REFERENCES_STYLESHEET = "REFERENCES_STYLESHEET"
+    DEFINES_STYLE = "DEFINES_STYLE"
+    HAS_SELECTOR = "HAS_SELECTOR"
+    USES_MIXIN = "USES_MIXIN"
+    USES_VARIABLE = "USES_VARIABLE"
+    SCSS_IMPORTS = "SCSS_IMPORTS"
 
 
 NODE_PROJECT = NodeLabel.PROJECT
