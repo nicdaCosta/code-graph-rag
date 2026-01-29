@@ -2197,6 +2197,26 @@ TS_STATIC = "static"
 TS_PROPERTY_IDENTIFIER = "property_identifier"
 TS_VARIABLE_DECLARATOR = "variable_declarator"
 
+# (H) JS/TS loop and type annotation node types (Phase 3)
+TS_FOR_IN_STATEMENT = "for_in_statement"
+TS_FOR_OF_STATEMENT = "for_statement"
+TS_TYPE_ANNOTATION = "type_annotation"
+TS_ARRAY_TYPE = "array_type"
+TS_PREDEFINED_TYPE = "predefined_type"
+TS_UNION_TYPE = "union_type"
+TS_INTERSECTION_TYPE = "intersection_type"
+TS_PARENTHESIZED_TYPE = "parenthesized_type"
+TS_LITERAL_TYPE = "literal_type"
+TS_OPTIONAL_TYPE = "optional_type"
+TS_READONLY_TYPE = "readonly_type"
+TS_TUPLE_TYPE = "tuple_type"
+TS_TYPE_ARGUMENTS = "type_arguments"
+
+# (H) JS/TS field names for type inference (Phase 3)
+FIELD_RETURN_TYPE = "return_type"
+FIELD_TYPE_ANNOTATION = "type"
+FIELD_INITIALIZER = "initializer"
+
 # (H) JS prototype property keywords
 JS_PROTOTYPE_KEYWORD = "prototype"
 JS_OBJECT_NAME = "Object"

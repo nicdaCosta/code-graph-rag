@@ -482,6 +482,17 @@ JS_METHOD_RETURN_ERROR = (
     "Error inferring JS method return type for {method_call}: {error}"
 )
 
+# (H) JS/TS type inference (Phase 3) logs
+JS_FOR_OF_VAR_INFERRED = "Inferred for-of loop variable: {var_name} -> {var_type}"
+JS_FOR_OF_ITERABLE_TYPE = "For-of loop iterable type: {iterable_type}"
+JS_FOR_OF_NO_ITERABLE = "Could not determine iterable type for for-of loop"
+JS_RETURN_TYPE_ANNOTATION = "Found return type annotation: {return_type}"
+JS_TYPE_ANNOTATION_FOUND = "Found type annotation: {annotation}"
+JS_GENERIC_TYPE_EXTRACTED = (
+    "Extracted element type from generic: {generic} -> {element}"
+)
+JS_ARRAY_TYPE_EXTRACTED = "Extracted element type from array: {array_type} -> {element}"
+
 # (H) Lua type inference logs
 LUA_VAR_TYPE_MAP_BUILT = "Built Lua variable type map with {count} variables"
 LUA_VAR_INFERRED = "Inferred Lua variable: {var_name} -> {var_type}"
