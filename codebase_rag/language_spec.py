@@ -187,6 +187,20 @@ PHP_FQN_SPEC = FQNSpec(
     file_to_module_parts=_generic_file_to_module,
 )
 
+CSS_FQN_SPEC = FQNSpec(
+    scope_node_types=frozenset(),
+    function_node_types=frozenset(),
+    get_name=_generic_get_name,
+    file_to_module_parts=_generic_file_to_module,
+)
+
+HTML_FQN_SPEC = FQNSpec(
+    scope_node_types=frozenset(),
+    function_node_types=frozenset(),
+    get_name=_generic_get_name,
+    file_to_module_parts=_generic_file_to_module,
+)
+
 LANGUAGE_FQN_SPECS: dict[cs.SupportedLanguage, FQNSpec] = {
     cs.SupportedLanguage.PYTHON: PYTHON_FQN_SPEC,
     cs.SupportedLanguage.JS: JS_FQN_SPEC,
@@ -199,6 +213,8 @@ LANGUAGE_FQN_SPECS: dict[cs.SupportedLanguage, FQNSpec] = {
     cs.SupportedLanguage.SCALA: SCALA_FQN_SPEC,
     cs.SupportedLanguage.CSHARP: CSHARP_FQN_SPEC,
     cs.SupportedLanguage.PHP: PHP_FQN_SPEC,
+    cs.SupportedLanguage.CSS: CSS_FQN_SPEC,
+    cs.SupportedLanguage.HTML: HTML_FQN_SPEC,
 }
 
 
@@ -405,6 +421,24 @@ LANGUAGE_SPECS: dict[cs.SupportedLanguage, LanguageSpec] = {
         module_node_types=cs.SPEC_LUA_MODULE_TYPES,
         call_node_types=cs.SPEC_LUA_CALL_TYPES,
         import_node_types=cs.SPEC_LUA_IMPORT_TYPES,
+    ),
+    cs.SupportedLanguage.CSS: LanguageSpec(
+        language=cs.SupportedLanguage.CSS,
+        file_extensions=cs.CSS_EXTENSIONS,
+        function_node_types=(),
+        class_node_types=(),
+        module_node_types=("stylesheet",),
+        call_node_types=(),
+        import_node_types=("import_statement",),
+    ),
+    cs.SupportedLanguage.HTML: LanguageSpec(
+        language=cs.SupportedLanguage.HTML,
+        file_extensions=cs.HTML_EXTENSIONS,
+        function_node_types=(),
+        class_node_types=(),
+        module_node_types=("document", "fragment"),
+        call_node_types=(),
+        import_node_types=(),
     ),
 }
 

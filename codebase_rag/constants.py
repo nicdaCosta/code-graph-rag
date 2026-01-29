@@ -111,6 +111,14 @@ CS_EXTENSIONS = (EXT_CS,)
 PHP_EXTENSIONS = (EXT_PHP,)
 LUA_EXTENSIONS = (EXT_LUA,)
 
+# (H) Frontend file extensions
+EXT_CSS = ".css"
+EXT_HTML = ".html"
+EXT_HTM = ".htm"
+
+CSS_EXTENSIONS = (EXT_CSS,)
+HTML_EXTENSIONS = (EXT_HTML, EXT_HTM)
+
 # (H) Package indicator files
 PKG_INIT_PY = "__init__.py"
 PKG_CARGO_TOML = "Cargo.toml"
@@ -439,6 +447,8 @@ class SupportedLanguage(StrEnum):
     CSHARP = "c-sharp"
     PHP = "php"
     LUA = "lua"
+    CSS = "css"
+    HTML = "html"
 
 
 class LanguageStatus(StrEnum):
@@ -507,6 +517,16 @@ LANGUAGE_METADATA: dict[SupportedLanguage, LanguageMetadata] = {
         LanguageStatus.DEV,
         "Classes, functions, namespaces",
         "PHP",
+    ),
+    SupportedLanguage.CSS: LanguageMetadata(
+        LanguageStatus.DEV,
+        "Selectors, rules, @-rules",
+        "CSS",
+    ),
+    SupportedLanguage.HTML: LanguageMetadata(
+        LanguageStatus.DEV,
+        "Elements, attributes, IDs, classes",
+        "HTML",
     ),
 }
 
@@ -735,6 +755,8 @@ class TreeSitterModule(StrEnum):
     JAVA = "tree_sitter_java"
     CPP = "tree_sitter_cpp"
     LUA = "tree_sitter_lua"
+    CSS = "tree_sitter_css"
+    HTML = "tree_sitter_html"
 
 
 # (H) Query dict keys

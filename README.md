@@ -48,7 +48,9 @@ An accurate Retrieval-Augmented Generation (RAG) system that analyzes multi-lang
 | Rust | Fully Supported | .rs | ✓ | ✓ | ✓ | ✓ | impl blocks, associated functions |
 | TypeScript | Fully Supported | .ts, .tsx | ✓ | ✓ | ✓ | - | Interfaces, type aliases, enums, namespaces, ES6/CommonJS modules |
 | C# | In Development | .cs | ✓ | ✓ | ✓ | - | Classes, interfaces, generics (planned) |
+| CSS | In Development | .css | - | - | ✓ | - | Selectors, rules, @-rules |
 | Go | In Development | .go | ✓ | ✓ | ✓ | - | Methods, type declarations |
+| HTML | In Development | .html, .htm | - | - | ✓ | - | Elements, attributes, IDs, classes |
 | PHP | In Development | .php | ✓ | ✓ | ✓ | - | Classes, functions, namespaces |
 | Scala | In Development | .scala, .sc | ✓ | ✓ | ✓ | - | Case classes, objects |
 <!-- /SECTION:supported_languages -->

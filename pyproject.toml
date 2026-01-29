@@ -52,6 +52,8 @@ treesitter-full = [
     "tree-sitter-java>=0.23.5",
     "tree-sitter-cpp>=0.23.0",
     "tree-sitter-lua>=0.0.19",
+    "tree-sitter-css>=0.23.2",
+    "tree-sitter-html>=0.23.2",
 ]
 
 semantic = [
