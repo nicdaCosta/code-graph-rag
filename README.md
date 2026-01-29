@@ -53,6 +53,7 @@ An accurate Retrieval-Augmented Generation (RAG) system that analyzes multi-lang
 | HTML | In Development | .html, .htm | - | - | ✓ | - | Elements, attributes, IDs, classes |
 | PHP | In Development | .php | ✓ | ✓ | ✓ | - | Classes, functions, namespaces |
 | Scala | In Development | .scala, .sc | ✓ | ✓ | ✓ | - | Case classes, objects |
+| SCSS | In Development | .scss, .sass | - | - | ✓ | - | Variables, mixins, nested rules, @use/@import |
 <!-- /SECTION:supported_languages -->
 - **🌳 Tree-sitter Parsing**: Uses Tree-sitter for robust, language-agnostic AST parsing
 - **📊 Knowledge Graph Storage**: Uses Memgraph to store codebase structure as an interconnected graph

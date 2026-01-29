@@ -201,6 +201,13 @@ HTML_FQN_SPEC = FQNSpec(
     file_to_module_parts=_generic_file_to_module,
 )
 
+SCSS_FQN_SPEC = FQNSpec(
+    scope_node_types=frozenset(),
+    function_node_types=frozenset(),
+    get_name=_generic_get_name,
+    file_to_module_parts=_generic_file_to_module,
+)
+
 LANGUAGE_FQN_SPECS: dict[cs.SupportedLanguage, FQNSpec] = {
     cs.SupportedLanguage.PYTHON: PYTHON_FQN_SPEC,
     cs.SupportedLanguage.JS: JS_FQN_SPEC,
@@ -215,6 +222,7 @@ LANGUAGE_FQN_SPECS: dict[cs.SupportedLanguage, FQNSpec] = {
     cs.SupportedLanguage.PHP: PHP_FQN_SPEC,
     cs.SupportedLanguage.CSS: CSS_FQN_SPEC,
     cs.SupportedLanguage.HTML: HTML_FQN_SPEC,
+    cs.SupportedLanguage.SCSS: SCSS_FQN_SPEC,
 }
 
 
@@ -439,6 +447,15 @@ LANGUAGE_SPECS: dict[cs.SupportedLanguage, LanguageSpec] = {
         module_node_types=("document", "fragment"),
         call_node_types=(),
         import_node_types=(),
+    ),
+    cs.SupportedLanguage.SCSS: LanguageSpec(
+        language=cs.SupportedLanguage.SCSS,
+        file_extensions=cs.SCSS_EXTENSIONS,
+        function_node_types=(),
+        class_node_types=(),
+        module_node_types=("stylesheet",),
+        call_node_types=(),
+        import_node_types=("import_statement",),
     ),
 }
 

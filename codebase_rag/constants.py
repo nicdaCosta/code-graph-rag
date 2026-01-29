@@ -115,9 +115,12 @@ LUA_EXTENSIONS = (EXT_LUA,)
 EXT_CSS = ".css"
 EXT_HTML = ".html"
 EXT_HTM = ".htm"
+EXT_SCSS = ".scss"
+EXT_SASS = ".sass"
 
 CSS_EXTENSIONS = (EXT_CSS,)
 HTML_EXTENSIONS = (EXT_HTML, EXT_HTM)
+SCSS_EXTENSIONS = (EXT_SCSS, EXT_SASS)
 
 # (H) Package indicator files
 PKG_INIT_PY = "__init__.py"
@@ -449,6 +452,7 @@ class SupportedLanguage(StrEnum):
     LUA = "lua"
     CSS = "css"
     HTML = "html"
+    SCSS = "scss"
 
 
 class LanguageStatus(StrEnum):
@@ -527,6 +531,11 @@ LANGUAGE_METADATA: dict[SupportedLanguage, LanguageMetadata] = {
         LanguageStatus.DEV,
         "Elements, attributes, IDs, classes",
         "HTML",
+    ),
+    SupportedLanguage.SCSS: LanguageMetadata(
+        LanguageStatus.DEV,
+        "Variables, mixins, nested rules, @use/@import",
+        "SCSS",
     ),
 }
 

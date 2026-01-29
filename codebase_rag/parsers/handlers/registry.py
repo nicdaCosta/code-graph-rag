@@ -23,6 +23,7 @@ _HANDLERS: dict[SupportedLanguage, type[BaseLanguageHandler]] = {
     SupportedLanguage.LUA: LuaHandler,
     SupportedLanguage.CSS: CssHandler,
     SupportedLanguage.HTML: HtmlHandler,
+    SupportedLanguage.SCSS: CssHandler,
 }
 
 _DEFAULT_HANDLER = BaseLanguageHandler
