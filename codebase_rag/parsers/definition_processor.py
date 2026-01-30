@@ -11,7 +11,7 @@ from ..types_defs import ASTNode, FunctionRegistryTrieProtocol, SimpleNameLookup
 from .class_ingest import ClassIngestMixin
 from .css import CssIngestMixin
 from .dependency_parser import parse_dependencies
-from .frameworks import ReactIngestMixin
+from .frameworks import CssInJsIngestMixin, ReactIngestMixin
 from .function_ingest import FunctionIngestMixin
 from .handlers import get_handler
 from .html import HtmlIngestMixin
@@ -32,6 +32,7 @@ class DefinitionProcessor(
     CssIngestMixin,
     HtmlIngestMixin,
     ReactIngestMixin,
+    CssInJsIngestMixin,
 ):
     _handler: LanguageHandler
 
@@ -152,6 +153,7 @@ class DefinitionProcessor(
             self._ingest_react_components(
                 root_node, module_qn, file_path, language, queries
             )
+            self._ingest_css_in_js(root_node, module_qn, file_path, language, queries)
 
             return (root_node, language)
 

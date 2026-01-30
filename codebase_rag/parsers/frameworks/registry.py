@@ -12,7 +12,6 @@ _FRAMEWORK_HANDLERS: dict[str, type[FrameworkHandler]] = {}
 
 def register_framework(name: str, handler_class: type[FrameworkHandler]) -> None:
     _FRAMEWORK_HANDLERS[name] = handler_class
-    logger.debug(f"Registered framework handler: {name}")
 
 
 def get_framework_handler(name: str) -> FrameworkHandler | None:
