@@ -146,6 +146,9 @@ class DefinitionProcessor(
             self._ingest_css_rules(root_node, module_qn, language, queries)
             self._ingest_scss_variables(root_node, module_qn, language, queries)
             self._ingest_scss_at_rules(root_node, module_qn, language, queries)
+            self._ingest_css_variables(root_node, module_qn, language, queries)
+            self._ingest_media_queries(root_node, module_qn, language, queries)
+            self._ingest_keyframe_animations(root_node, module_qn, language, queries)
 
             self._ingest_html_elements(root_node, module_qn, language, queries)
             self._ingest_stylesheet_references(root_node, module_qn, language, queries)

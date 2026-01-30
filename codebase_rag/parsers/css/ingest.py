@@ -273,3 +273,206 @@ class CssIngestMixin:
             cs.RelationshipType.SCSS_IMPORTS,
             (cs.NodeLabel.MODULE, cs.KEY_NAME, import_path),
         )
+
+    def _ingest_css_variables(
+        self,
+        root_node: ASTNode,
+        module_qn: str,
+        language: cs.SupportedLanguage,
+        queries: dict[cs.SupportedLanguage, LanguageQueries],
+    ) -> None:
+        if language not in (cs.SupportedLanguage.CSS, cs.SupportedLanguage.SCSS):
+            return
+
+        self._process_css_variables_recursive(root_node, module_qn)
+
+    def _process_css_variables_recursive(self, node: ASTNode, module_qn: str) -> None:
+        for child in node.children:
+            if child.type == "declaration":
+                self._check_css_variable_declaration(child, module_qn)
+            self._process_css_variables_recursive(child, module_qn)
+
+    def _check_css_variable_declaration(self, node: ASTNode, module_qn: str) -> None:
+        property_node = node.child_by_field_name("property")
+        if not property_node:
+            for child in node.children:
+                if child.type == "property_name":
+                    property_node = child
+                    break
+
+        if not property_node or not property_node.text:
+            return
+
+        prop_name = property_node.text.decode(cs.ENCODING_UTF8)
+        if not prop_name.startswith("--"):
+            return
+
+        value_node = node.child_by_field_name("value")
+        if not value_node:
+            for child in node.children:
+                if child.type not in ("property_name", ":"):
+                    value_node = child
+                    break
+
+        var_value = ""
+        if value_node and value_node.text:
+            var_value = value_node.text.decode(cs.ENCODING_UTF8).rstrip(";")
+
+        var_qn = f"{module_qn}.{prop_name}"
+
+        var_props: PropertyDict = {
+            cs.KEY_QUALIFIED_NAME: var_qn,
+            cs.KEY_NAME: prop_name,
+            "value": var_value,
+            cs.KEY_START_LINE: node.start_point[0] + 1,
+            cs.KEY_END_LINE: node.end_point[0] + 1,
+        }
+
+        logger.debug(f"CSS variable found: {prop_name} = {var_value}")
+        self.ingestor.ensure_node_batch(cs.NodeLabel.CSS_VARIABLE, var_props)
+
+        self.ingestor.ensure_relationship_batch(
+            (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
+            cs.RelationshipType.DEFINES_VARIABLE,
+            (cs.NodeLabel.CSS_VARIABLE, cs.KEY_QUALIFIED_NAME, var_qn),
+        )
+
+    def _ingest_media_queries(
+        self,
+        root_node: ASTNode,
+        module_qn: str,
+        language: cs.SupportedLanguage,
+        queries: dict[cs.SupportedLanguage, LanguageQueries],
+    ) -> None:
+        if language not in (cs.SupportedLanguage.CSS, cs.SupportedLanguage.SCSS):
+            return
+
+        self._process_media_queries_recursive(root_node, module_qn, 0)
+
+    def _process_media_queries_recursive(
+        self, node: ASTNode, module_qn: str, counter: int
+    ) -> int:
+        for child in node.children:
+            if child.type == "media_statement":
+                counter = self._process_media_statement(child, module_qn, counter)
+            counter = self._process_media_queries_recursive(child, module_qn, counter)
+        return counter
+
+    def _process_media_statement(
+        self, node: ASTNode, module_qn: str, counter: int
+    ) -> int:
+        if not node.text:
+            return counter
+
+        text = node.text.decode(cs.ENCODING_UTF8)
+        condition = ""
+
+        for child in node.children:
+            if child.type in ("media_feature", "media_query_list", "keyword_query"):
+                if child.text:
+                    condition = child.text.decode(cs.ENCODING_UTF8)
+                    break
+
+        if not condition:
+            paren_start = text.find("(")
+            paren_end = text.find(")")
+            if paren_start != -1 and paren_end != -1:
+                condition = text[paren_start : paren_end + 1]
+            else:
+                parts = text.split("{")[0].replace("@media", "").strip()
+                condition = parts if parts else f"query_{counter}"
+
+        media_name = f"media_{counter}"
+        media_qn = f"{module_qn}.{media_name}"
+
+        media_props: PropertyDict = {
+            cs.KEY_QUALIFIED_NAME: media_qn,
+            cs.KEY_NAME: media_name,
+            "condition": condition,
+            cs.KEY_START_LINE: node.start_point[0] + 1,
+            cs.KEY_END_LINE: node.end_point[0] + 1,
+        }
+
+        logger.debug(f"Media query found: {condition}")
+        self.ingestor.ensure_node_batch(cs.NodeLabel.MEDIA_QUERY, media_props)
+
+        self.ingestor.ensure_relationship_batch(
+            (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
+            cs.RelationshipType.DEFINES_MEDIA_QUERY,
+            (cs.NodeLabel.MEDIA_QUERY, cs.KEY_QUALIFIED_NAME, media_qn),
+        )
+
+        return counter + 1
+
+    def _ingest_keyframe_animations(
+        self,
+        root_node: ASTNode,
+        module_qn: str,
+        language: cs.SupportedLanguage,
+        queries: dict[cs.SupportedLanguage, LanguageQueries],
+    ) -> None:
+        if language not in (cs.SupportedLanguage.CSS, cs.SupportedLanguage.SCSS):
+            return
+
+        self._process_keyframes_recursive(root_node, module_qn)
+
+    def _process_keyframes_recursive(self, node: ASTNode, module_qn: str) -> None:
+        for child in node.children:
+            if child.type == "keyframes_statement":
+                self._process_keyframes_statement(child, module_qn)
+            self._process_keyframes_recursive(child, module_qn)
+
+    def _process_keyframes_statement(self, node: ASTNode, module_qn: str) -> None:
+        if not node.text:
+            return
+
+        text = node.text.decode(cs.ENCODING_UTF8)
+        anim_name = ""
+
+        for child in node.children:
+            if child.type == "keyframes_name":
+                if child.text:
+                    anim_name = child.text.decode(cs.ENCODING_UTF8)
+                    break
+
+        if not anim_name:
+            parts = text.split("{")[0].replace("@keyframes", "").strip()
+            parts = parts.replace("@-webkit-keyframes", "").strip()
+            anim_name = parts if parts else "unnamed_animation"
+
+        anim_qn = f"{module_qn}.{anim_name}"
+
+        keyframes: list[str] = []
+        for child in node.children:
+            if child.type == "keyframe_block_list":
+                for block in child.children:
+                    if block.type == "keyframe_block":
+                        selector = block.child_by_field_name("selector")
+                        if selector and selector.text:
+                            keyframes.append(selector.text.decode(cs.ENCODING_UTF8))
+                        else:
+                            for subchild in block.children:
+                                if subchild.type in ("from", "to", "integer"):
+                                    if subchild.text:
+                                        keyframes.append(
+                                            subchild.text.decode(cs.ENCODING_UTF8)
+                                        )
+                                    break
+
+        anim_props: PropertyDict = {
+            cs.KEY_QUALIFIED_NAME: anim_qn,
+            cs.KEY_NAME: anim_name,
+            cs.KEY_START_LINE: node.start_point[0] + 1,
+            cs.KEY_END_LINE: node.end_point[0] + 1,
+        }
+        if keyframes:
+            anim_props["keyframes"] = ", ".join(keyframes)
+
+        logger.debug(f"Keyframe animation found: {anim_name}")
+        self.ingestor.ensure_node_batch(cs.NodeLabel.KEYFRAME_ANIMATION, anim_props)
+
+        self.ingestor.ensure_relationship_batch(
+            (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
+            cs.RelationshipType.DEFINES_KEYFRAME,
+            (cs.NodeLabel.KEYFRAME_ANIMATION, cs.KEY_QUALIFIED_NAME, anim_qn),
+        )

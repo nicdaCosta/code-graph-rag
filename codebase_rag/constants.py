@@ -356,6 +356,9 @@ class NodeLabel(StrEnum):
     REACT_CONTEXT = "ReactContext"
     STYLED_COMPONENT = "StyledComponent"
     CSS_IN_JS_RULE = "CssInJsRule"
+    CSS_VARIABLE = "CssVariable"
+    MEDIA_QUERY = "MediaQuery"
+    KEYFRAME_ANIMATION = "KeyframeAnimation"
 
 
 _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
@@ -385,6 +388,9 @@ _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
     NodeLabel.REACT_CONTEXT: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.STYLED_COMPONENT: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.CSS_IN_JS_RULE: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.CSS_VARIABLE: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.MEDIA_QUERY: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.KEYFRAME_ANIMATION: UniqueKeyType.QUALIFIED_NAME,
 }
 
 _missing_keys = set(NodeLabel) - set(_NODE_LABEL_UNIQUE_KEYS.keys())
@@ -425,6 +431,10 @@ class RelationshipType(StrEnum):
     ACCEPTS_PROPS = "ACCEPTS_PROPS"
     HAS_STYLED_COMPONENT = "HAS_STYLED_COMPONENT"
     STYLED_WITH = "STYLED_WITH"
+    DEFINES_VARIABLE = "DEFINES_VARIABLE"
+    DEFINES_MEDIA_QUERY = "DEFINES_MEDIA_QUERY"
+    DEFINES_KEYFRAME = "DEFINES_KEYFRAME"
+    USES_CSS_VARIABLE = "USES_CSS_VARIABLE"
 
 
 NODE_PROJECT = NodeLabel.PROJECT
