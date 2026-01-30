@@ -5,11 +5,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from ... import constants as cs
+from ...types_defs import PropertyDict, PropertyValue
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ...types_defs import ASTNode, PropertyDict
+    from ...types_defs import ASTNode
 
 
 @dataclass
@@ -21,7 +22,7 @@ class ComponentInfo:
     end_line: int
     props_interface: str | None = None
     is_exported: bool = False
-    properties: dict[str, str] = field(default_factory=dict)
+    properties: dict[str, PropertyValue] = field(default_factory=dict)
 
 
 @dataclass
@@ -40,7 +41,7 @@ class ComponentRelationship:
     relationship_type: cs.RelationshipType
     target_qn: str
     target_label: cs.NodeLabel
-    properties: dict[str, str] = field(default_factory=dict)
+    properties: PropertyDict = field(default_factory=dict)
 
 
 class FrameworkHandler(ABC):
