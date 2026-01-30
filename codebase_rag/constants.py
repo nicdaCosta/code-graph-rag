@@ -351,6 +351,11 @@ class NodeLabel(StrEnum):
     SCSS_VARIABLE = "ScssVariable"
     SCSS_MIXIN = "ScssMixin"
     SCSS_FUNCTION = "ScssFunction"
+    REACT_COMPONENT = "ReactComponent"
+    REACT_HOOK = "ReactHook"
+    REACT_CONTEXT = "ReactContext"
+    STYLED_COMPONENT = "StyledComponent"
+    CSS_IN_JS_RULE = "CssInJsRule"
 
 
 _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
@@ -375,6 +380,11 @@ _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
     NodeLabel.SCSS_VARIABLE: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.SCSS_MIXIN: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.SCSS_FUNCTION: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.REACT_COMPONENT: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.REACT_HOOK: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.REACT_CONTEXT: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.STYLED_COMPONENT: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.CSS_IN_JS_RULE: UniqueKeyType.QUALIFIED_NAME,
 }
 
 _missing_keys = set(NodeLabel) - set(_NODE_LABEL_UNIQUE_KEYS.keys())
@@ -408,6 +418,13 @@ class RelationshipType(StrEnum):
     USES_MIXIN = "USES_MIXIN"
     USES_VARIABLE = "USES_VARIABLE"
     SCSS_IMPORTS = "SCSS_IMPORTS"
+    RENDERS = "RENDERS"
+    USES_HOOK = "USES_HOOK"
+    PROVIDES_CONTEXT = "PROVIDES_CONTEXT"
+    CONSUMES_CONTEXT = "CONSUMES_CONTEXT"
+    ACCEPTS_PROPS = "ACCEPTS_PROPS"
+    HAS_STYLED_COMPONENT = "HAS_STYLED_COMPONENT"
+    STYLED_WITH = "STYLED_WITH"
 
 
 NODE_PROJECT = NodeLabel.PROJECT
