@@ -30,12 +30,12 @@ def _clean_cypher_response(response_text: str) -> str:
     query = response_text.strip()
 
     code_block_match = re.search(
-        r"```(?:cypher)?\s*(.*?)```", query, re.DOTALL | re.IGNORECASE
+        cs.CYPHER_CODE_BLOCK_PATTERN, query, re.DOTALL | re.IGNORECASE
     )
     if code_block_match:
         query = code_block_match.group(1).strip()
     else:
-        query = re.sub(r"\*\*[^\*]+\*\*:?\s*", "", query)
+        query = re.sub(cs.CYPHER_BOLD_MARKDOWN_PATTERN, "", query)
         query = query.replace(cs.CYPHER_BACKTICK, "")
         if query.lower().startswith(cs.CYPHER_PREFIX):
             query = query[len(cs.CYPHER_PREFIX) :].strip()

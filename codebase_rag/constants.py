@@ -956,6 +956,8 @@ CYPHER_PREFIX = "cypher"
 CYPHER_SEMICOLON = ";"
 CYPHER_BACKTICK = "`"
 CYPHER_MATCH_KEYWORD = "MATCH"
+CYPHER_CODE_BLOCK_PATTERN = r"```(?:cypher)?\s*(.*?)```"
+CYPHER_BOLD_MARKDOWN_PATTERN = r"\*\*[^\*]+\*\*:?\s*"
 
 # (H) Tool success messages
 MSG_SURGICAL_SUCCESS = "Successfully applied surgical code replacement in: {path}"
