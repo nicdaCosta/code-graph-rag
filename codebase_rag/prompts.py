@@ -1,10 +1,14 @@
 from typing import TYPE_CHECKING
 
 from .cypher_queries import (
+    CYPHER_EXAMPLE_CLASS_METHODS,
+    CYPHER_EXAMPLE_CLASSES_IN_PATH,
     CYPHER_EXAMPLE_CONTENT_BY_PATH,
     CYPHER_EXAMPLE_DECORATED_FUNCTIONS,
     CYPHER_EXAMPLE_FILES_IN_FOLDER,
+    CYPHER_EXAMPLE_FIND_CALLERS,
     CYPHER_EXAMPLE_FIND_FILE,
+    CYPHER_EXAMPLE_FUNCTION_WITH_PATH,
     CYPHER_EXAMPLE_KEYWORD_SEARCH,
     CYPHER_EXAMPLE_LIMIT_ONE,
     CYPHER_EXAMPLE_PYTHON_FILES,
@@ -41,6 +45,46 @@ CYPHER_QUERY_RULES = """**2. Critical Cypher Query Rules**
 - **Querying Lists**: To check if a list property (like `decorators`) contains an item, use the `ANY` or `IN` clause (e.g., `WHERE 'flow' IN n.decorators`)."""
 
 
+SCHEMA_SEMANTIC_NOTES = """**Schema Architecture Notes**
+
+**Language-Agnostic Graph Model:**
+This schema models codebases in any supported language (Python, JavaScript, TypeScript, Rust, Java, C++, Lua, Go, Scala, C#, PHP). The same node types and relationships apply regardless of language. For example, a Python `def`, a JavaScript `function`, a Rust `fn`, and a Java method are all represented as Function or Method nodes.
+
+**File vs Module (Parallel Hierarchies — CRITICAL):**
+- A `File` node represents a physical file on disk (unique by `path`, has `extension`).
+- A `Module` node represents the logical code unit parsed from that file (unique by `qualified_name`, also has `path`).
+- File and Module are SIBLING nodes under the same parent Folder. A Folder has `CONTAINS_FILE` to File AND `CONTAINS_MODULE` to Module.
+- IMPORTANT: There is NO direct relationship between File and Module. `(File)-[:CONTAINS_MODULE]->(Module)` does NOT exist. Only Folder, Package, or Project nodes have `CONTAINS_MODULE` edges.
+- Code symbols (Class, Function, Method) are defined by Module via `DEFINES`, NOT by File.
+- To get a file's path for a code symbol, use Module's `path` property directly — do NOT try to traverse from File to Module.
+
+**Getting a File Path for a Code Symbol:**
+- Function, Method, Class, Interface, Enum, Type, and Union nodes do NOT have a `path` property.
+- To find the file path for a code symbol, traverse through its Module: `(m:Module)-[:DEFINES]->(symbol)` then use `m.path`.
+- For methods, chain through Class: `(m:Module)-[:DEFINES]->(c:Class)-[:DEFINES_METHOD]->(method)` then use `m.path`.
+
+**Unique Identifiers by Node Type:**
+- `name` is the unique key for: Project, ExternalPackage.
+- `path` is the unique key for: File, Folder.
+- `qualified_name` is the unique key for all code symbols: Module, Package, Class, Function, Method, Interface, Enum, Type, Union, ModuleInterface, ModuleImplementation.
+
+**Property Availability:**
+- `path` exists on: File, Folder, Module, Package, ModuleInterface, ModuleImplementation.
+- `path` does NOT exist on: Function, Method, Class, Interface, Enum, Type, Union.
+- `qualified_name` exists on all code symbols and Module/Package, but NOT on: File, Folder, Project.
+- `decorators` (list of strings) exists only on: Function, Method, Class.
+- `extension` exists only on: File.
+
+**Relationship Direction Rules:**
+- Container relationships (CONTAINS_*) flow from: Project, Package, or Folder.
+- DEFINES flows from: Module to Class or Function.
+- DEFINES_METHOD flows from: Class to Method.
+- CALLS flows between: Function or Method to Function or Method.
+- IMPORTS flows from: Module to Module.
+- INHERITS flows from: subclass Class to superclass Class.
+- IMPLEMENTS flows from: Class to Interface."""
+
+
 def build_graph_schema_and_rules() -> str:
     return f"""You are an expert AI assistant for analyzing codebases using a **hybrid retrieval system**: a **Memgraph knowledge graph** for structural queries and a **semantic code search engine** for intent-based discovery.
 
@@ -48,6 +92,8 @@ def build_graph_schema_and_rules() -> str:
 The database contains information about a codebase, structured with the following nodes and relationships.
 
 {GRAPH_SCHEMA_DEFINITION}
+
+{SCHEMA_SEMANTIC_NOTES}
 
 {CYPHER_QUERY_RULES}
 """
@@ -166,7 +212,23 @@ cypher// "find things related to 'database'"
 cypher// "Find the main README.md"
 {CYPHER_EXAMPLE_FIND_FILE}
 
-**4. Output Format**
+**Pattern: Finding Callers of a Function (Multi-hop with File Path)**
+cypher// "Who calls the function X?" or "find callers of Y"
+{CYPHER_EXAMPLE_FIND_CALLERS}
+
+**Pattern: Finding a Function with its File Path (Module Traversal)**
+cypher// "Find functions named 'search'" or "where is function X defined?"
+{CYPHER_EXAMPLE_FUNCTION_WITH_PATH}
+
+**Pattern: Finding Classes Defined in a Path**
+cypher// "Show classes in the models directory" or "list classes in src/models"
+{CYPHER_EXAMPLE_CLASSES_IN_PATH}
+
+**Pattern: Finding Methods of a Class (Multi-hop with File Path)**
+cypher// "What methods does UserService have?" or "list methods of class X"
+{CYPHER_EXAMPLE_CLASS_METHODS}
+
+**5. Output Format**
 Provide only the Cypher query.
 """
 
@@ -225,6 +287,30 @@ You are a Neo4j Cypher query generator. You ONLY respond with a valid Cypher que
 *   **Cypher Query:**
     ```cypher
     {CYPHER_EXAMPLE_LIMIT_ONE}
+    ```
+
+*   **Natural Language:** "Who calls the processData function?"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_FIND_CALLERS}
+    ```
+
+*   **Natural Language:** "Find functions with 'search' in the name and their file paths"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_FUNCTION_WITH_PATH}
+    ```
+
+*   **Natural Language:** "Show classes in the models directory"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_CLASSES_IN_PATH}
+    ```
+
+*   **Natural Language:** "What methods does UserService have?"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_CLASS_METHODS}
     ```
 """
 

@@ -51,6 +51,30 @@ LIMIT {CYPHER_DEFAULT_LIMIT}"""
 
 CYPHER_EXAMPLE_LIMIT_ONE = """MATCH (f:File) RETURN f.path as path, f.name as name, labels(f) as type LIMIT 1"""
 
+CYPHER_EXAMPLE_FIND_CALLERS = f"""MATCH (caller:Function|Method)-[:CALLS]->(target:Function|Method)
+WHERE toLower(target.name) = toLower('targetFunctionName')
+OPTIONAL MATCH (m1:Module)-[:DEFINES]->(caller)
+OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
+WITH caller, target, coalesce(m1.path, m2.path) AS file_path
+WHERE file_path IS NOT NULL
+RETURN DISTINCT file_path, caller.name AS caller_name, target.name AS called_function
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_FUNCTION_WITH_PATH = f"""MATCH (m:Module)-[:DEFINES]->(f:Function)
+WHERE toLower(f.name) CONTAINS 'search'
+RETURN f.name AS function_name, f.qualified_name AS qualified_name, m.path AS file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_CLASSES_IN_PATH = f"""MATCH (m:Module)-[:DEFINES]->(c:Class)
+WHERE m.path STARTS WITH 'src/models'
+RETURN c.name AS class_name, c.qualified_name AS qualified_name, m.path AS file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_CLASS_METHODS = f"""MATCH (m:Module)-[:DEFINES]->(c:Class)-[:DEFINES_METHOD]->(method:Method)
+WHERE toLower(c.name) = 'userservice'
+RETURN method.name AS method_name, c.name AS class_name, m.path AS file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
 CYPHER_EXPORT_NODES = """
 MATCH (n)
 RETURN id(n) as node_id, labels(n) as labels, properties(n) as properties

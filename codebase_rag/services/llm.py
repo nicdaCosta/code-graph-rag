@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -26,9 +27,19 @@ def _create_provider_model(config: ModelConfig) -> Model:
 
 
 def _clean_cypher_response(response_text: str) -> str:
-    query = response_text.strip().replace(cs.CYPHER_BACKTICK, "")
-    if query.startswith(cs.CYPHER_PREFIX):
-        query = query[len(cs.CYPHER_PREFIX) :].strip()
+    query = response_text.strip()
+
+    code_block_match = re.search(
+        r"```(?:cypher)?\s*(.*?)```", query, re.DOTALL | re.IGNORECASE
+    )
+    if code_block_match:
+        query = code_block_match.group(1).strip()
+    else:
+        query = re.sub(r"\*\*[^\*]+\*\*:?\s*", "", query)
+        query = query.replace(cs.CYPHER_BACKTICK, "")
+        if query.lower().startswith(cs.CYPHER_PREFIX):
+            query = query[len(cs.CYPHER_PREFIX) :].strip()
+
     if not query.endswith(cs.CYPHER_SEMICOLON):
         query += cs.CYPHER_SEMICOLON
     return query
