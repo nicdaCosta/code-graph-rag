@@ -854,6 +854,29 @@ class MyClass:
         )
         assert result is None
 
+    def test_nested_inside_arrow_function(
+        self,
+        call_processor: CallProcessor,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.JS not in parsers:
+            pytest.skip("JavaScript parser not available")
+
+        code = "const outer = () => { function inner() {} };"
+        root = parse_code(code, cs.SupportedLanguage.JS, parsers)
+
+        inner_func = find_first_node_of_type(root, "function_declaration")
+        assert inner_func is not None
+
+        lang_config = queries[cs.SupportedLanguage.JS]["config"]
+        result = call_processor._build_nested_qualified_name(
+            inner_func, "proj.module", "inner", lang_config
+        )
+
+        # (H) arrow parent's name resolved via variable_declarator
+        assert result == "proj.module.outer.inner"
+
 
 class TestResolveFunctionCall:
     @pytest.fixture

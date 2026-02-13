@@ -683,10 +683,8 @@ class CallProcessor:
 
         while current and current.type not in lang_config.module_node_types:
             if current.type in lang_config.function_node_types:
-                if name_node := current.child_by_field_name(cs.FIELD_NAME):
-                    text = name_node.text
-                    if text is not None:
-                        path_parts.append(text.decode(cs.ENCODING_UTF8))
+                if parent_name := self._get_node_name(current):
+                    path_parts.append(parent_name)
             elif current.type in lang_config.class_node_types:
                 return None
 
