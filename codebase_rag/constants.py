@@ -1151,6 +1151,12 @@ DOC_PROMPT_PREFIX = (
 )
 
 MOD_RS = "mod.rs"
+
+TSCONFIG_JSON = "tsconfig.json"
+TSCONFIG_REFERENCES_KEY = "references"
+TSCONFIG_PATH_KEY = "path"
+TSCONFIG_ENTRY_POINT_FIELDS = ("typings", "types", "main", "module")
+TSCONFIG_ENTRY_POINT_FALLBACKS = ("src/index", "index")
 SEPARATOR_DOUBLE_COLON = "::"
 SEPARATOR_COLON = ":"
 SEPARATOR_PROTOTYPE = ".prototype."

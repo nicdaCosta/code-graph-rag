@@ -355,6 +355,16 @@ CALL_METHOD_NODE_FAILED = (
 CALL_INGEST_NODE_FAILED = (
     "Failed to ingest call at line {line} in {caller}: {error}\n{trace}"
 )
+TSCONFIG_ENTRY_POINT_FOUND = "Entry point for {package}: {entry}"
+TSCONFIG_REFERENCE_RESOLVED = (
+    "Reference resolved: {ref_path} -> {package_name} (entry: {entry})"
+)
+TSCONFIG_REFERENCE_PATHS_BUILT = (
+    "Built {count} reference-derived path mappings from {tsconfig}"
+)
+TSCONFIG_MERGED_PATHS = (
+    "Merged {workspace} workspace + {reference} reference paths ({total} total)"
+)
 CALL_UNRESOLVED_DETAILS = (
     "❌ UNRESOLVED CALL: {call_name} in {caller_qn}\n"
     "   Module: {module_qn}\n"

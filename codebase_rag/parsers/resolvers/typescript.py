@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
+from codebase_rag import constants as cs
+from codebase_rag import logs as ls
+
 if TYPE_CHECKING:
     from codebase_rag.parsers.js_ts.tsconfig_resolver import TsConfigResolver
     from codebase_rag.parsers.workspace.protocol import WorkspaceResolver
@@ -195,7 +198,8 @@ class TypeScriptModuleResolver:
             target_wildcard = f"{relative_path}/*"
             paths[pattern_wildcard] = [target_wildcard]
 
-            paths[package.name] = [str(relative_path)]
+            entry = self._detect_package_entry_point(package.path)
+            paths[package.name] = [entry] if entry else [str(relative_path)]
 
         if not paths:
             return None
@@ -205,6 +209,57 @@ class TypeScriptModuleResolver:
             f"({len(paths) // 2} packages with wildcard + exact patterns)"
         )
         return paths
+
+    def _detect_package_entry_point(self, package_path: Path) -> str | None:
+        pkg_json_path = package_path / cs.DEP_FILE_PACKAGE_JSON
+        if not pkg_json_path.exists():
+            return None
+
+        try:
+            with pkg_json_path.open() as f:
+                pkg_data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
+
+        for field in cs.TSCONFIG_ENTRY_POINT_FIELDS:
+            if value := pkg_data.get(field):
+                entry_path = (package_path / value).resolve()
+                entry_no_ext = entry_path.with_suffix("")
+                for ext in _TS_JS_EXTENSIONS:
+                    if entry_no_ext.with_suffix(ext).exists():
+                        try:
+                            rel = entry_no_ext.relative_to(self.repo_path)
+                            return str(rel)
+                        except ValueError:
+                            continue
+                if entry_path.exists():
+                    try:
+                        rel = entry_path.with_suffix("").relative_to(self.repo_path)
+                        return str(rel)
+                    except ValueError:
+                        continue
+
+        for fallback in cs.TSCONFIG_ENTRY_POINT_FALLBACKS:
+            fallback_path = package_path / fallback
+            for ext in _TS_JS_EXTENSIONS:
+                if fallback_path.with_suffix(ext).exists():
+                    try:
+                        rel = fallback_path.relative_to(self.repo_path)
+                        return str(rel)
+                    except ValueError:
+                        continue
+
+        return None
+
+    def _build_reference_paths(self) -> dict[str, list[str]] | None:
+        if not self.tsconfig_resolver:
+            return None
+
+        root_tsconfig = self.repo_path / cs.TSCONFIG_JSON
+        if not root_tsconfig.exists():
+            return None
+
+        return self.tsconfig_resolver.resolve_references(root_tsconfig) or None
 
     def _send_workspace_init(self) -> None:
         """Send workspace package paths to Node.js subprocess as init message.
@@ -224,7 +279,18 @@ class TypeScriptModuleResolver:
             logger.debug("No Node.js subprocess available for workspace init")
             return
 
-        paths = self._build_workspace_paths()
+        workspace_paths = self._build_workspace_paths() or {}
+        reference_paths = self._build_reference_paths() or {}
+        paths = {**workspace_paths, **reference_paths}
+
+        if paths:
+            logger.debug(
+                ls.TSCONFIG_MERGED_PATHS.format(
+                    workspace=len(workspace_paths),
+                    reference=len(reference_paths),
+                    total=len(paths),
+                )
+            )
 
         if not paths:
             logger.debug("No workspace paths to inject into Node.js resolver")
