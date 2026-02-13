@@ -531,6 +531,10 @@ class ImportProcessor:
                     )
                     return resolved
 
+            if self.workspace_resolver:
+                if resolved := self._try_workspace_resolution(import_path):
+                    return resolved
+
             return import_path.replace(cs.SEPARATOR_SLASH, cs.SEPARATOR_DOT)
 
         current_parts = current_module.split(cs.SEPARATOR_DOT)[:-1]

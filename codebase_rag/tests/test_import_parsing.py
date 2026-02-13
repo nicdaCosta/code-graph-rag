@@ -598,3 +598,91 @@ def test_js_no_workspace_resolver_fallback(tmp_path: Path) -> None:
         cs.SupportedLanguage.JS,
     )
     assert resolved == "@web-platform.shared-acorn-redux.src.utils"
+
+
+def test_js_workspace_resolver_before_naive_fallback(tmp_path: Path) -> None:
+    from codebase_rag import constants as cs
+    from codebase_rag.parsers.import_processor import ImportProcessor
+    from codebase_rag.parsers.resolvers.factory import create_module_resolver
+    from codebase_rag.parsers.workspace.factory import WorkspaceResolverFactory
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    (workspace / "pnpm-workspace.yaml").write_text("packages:\n  - 'libs/*'\n")
+    (workspace / "package.json").write_text('{"name": "workspace", "version": "1.0.0"}')
+
+    lib_dir = workspace / "libs" / "shared-acorn-redux"
+    lib_dir.mkdir(parents=True)
+    (lib_dir / "package.json").write_text(
+        '{"name": "@web-platform/shared-acorn-redux", "version": "1.0.0"}'
+    )
+    src_dir = lib_dir / "src" / "selectors"
+    src_dir.mkdir(parents=True)
+    (src_dir / "validItineraries.ts").write_text(
+        "export function getAllValidItineraryIds() {}"
+    )
+
+    factory = WorkspaceResolverFactory(workspace, "workspace")
+    ws_resolver = factory.create_resolver()
+
+    module_resolver = create_module_resolver(
+        language=cs.SupportedLanguage.TS,
+        repo_path=workspace,
+        project_name="workspace",
+        workspace_resolver=ws_resolver,
+    )
+
+    processor = ImportProcessor(
+        repo_path=workspace,
+        project_name="workspace",
+        workspace_resolver=ws_resolver,
+        module_resolver=module_resolver,
+    )
+
+    resolved = processor._resolve_js_module_path(
+        "@web-platform/shared-acorn-redux/src/selectors/validItineraries",
+        "workspace.apps.flights.FlightsDayView",
+        cs.SupportedLanguage.TS,
+    )
+
+    # (H) workspace resolver handles this before the naive slash-to-dot fallback
+    assert not resolved.startswith("@web-platform")
+    assert "shared-acorn-redux" in resolved
+
+
+def test_js_unknown_package_falls_through_to_naive(tmp_path: Path) -> None:
+    from codebase_rag import constants as cs
+    from codebase_rag.parsers.import_processor import ImportProcessor
+    from codebase_rag.parsers.resolvers.factory import create_module_resolver
+    from codebase_rag.parsers.workspace.factory import WorkspaceResolverFactory
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    (workspace / "pnpm-workspace.yaml").write_text("packages:\n  - 'libs/*'\n")
+    (workspace / "package.json").write_text('{"name": "workspace", "version": "1.0.0"}')
+
+    factory = WorkspaceResolverFactory(workspace, "workspace")
+    ws_resolver = factory.create_resolver()
+
+    module_resolver = create_module_resolver(
+        language=cs.SupportedLanguage.TS,
+        repo_path=workspace,
+        project_name="workspace",
+        workspace_resolver=ws_resolver,
+    )
+
+    processor = ImportProcessor(
+        repo_path=workspace,
+        project_name="workspace",
+        workspace_resolver=ws_resolver,
+        module_resolver=module_resolver,
+    )
+
+    resolved = processor._resolve_js_module_path(
+        "lodash/fp", "workspace.src.index", cs.SupportedLanguage.JS
+    )
+
+    # (H) unknown external packages still fall through to naive slash-to-dot
+    assert resolved == "lodash.fp"
