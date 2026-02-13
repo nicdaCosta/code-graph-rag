@@ -338,6 +338,23 @@ CALL_IMPORT_MAP_CONTENTS = "Import map for {module_qn}: {import_keys}"
 CALL_REGISTRY_MISSING = "❌ Not in registry: {func_qn}"
 CALL_REGISTRY_MODULE_FUNCS = "Registry has {count} functions from module {module_qn}"
 CALL_REGISTRY_EXAMPLES = "Registry examples from {module_qn}: {examples}"
+CALL_FUNCTIONS_FAILED = "Failed to process function calls in {path}: {error}\n{trace}"
+CALL_CLASSES_FAILED = "Failed to process class calls in {path}: {error}\n{trace}"
+CALL_MODULE_LEVEL_FAILED = (
+    "Failed to process module-level calls in {path}: {error}\n{trace}"
+)
+CALL_FUNC_NODE_FAILED = (
+    "Failed to process {func_type} at line {line} in {module}: {error}\n{trace}"
+)
+CALL_CLASS_NODE_FAILED = (
+    "Failed to process class at line {line} in {module}: {error}\n{trace}"
+)
+CALL_METHOD_NODE_FAILED = (
+    "Failed to process method at line {line} in {class_qn}: {error}\n{trace}"
+)
+CALL_INGEST_NODE_FAILED = (
+    "Failed to ingest call at line {line} in {caller}: {error}\n{trace}"
+)
 CALL_UNRESOLVED_DETAILS = (
     "❌ UNRESOLVED CALL: {call_name} in {caller_qn}\n"
     "   Module: {module_qn}\n"

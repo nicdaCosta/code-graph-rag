@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from pathlib import Path
 
 from loguru import logger
@@ -62,21 +63,40 @@ class CallProcessor:
         relative_path = file_path.relative_to(self.repo_path)
         logger.debug(ls.CALL_PROCESSING_FILE.format(path=relative_path))
 
-        try:
+        module_qn = cs.SEPARATOR_DOT.join(
+            [self.project_name] + list(relative_path.with_suffix("").parts)
+        )
+        if file_path.name in (cs.INIT_PY, cs.MOD_RS):
             module_qn = cs.SEPARATOR_DOT.join(
-                [self.project_name] + list(relative_path.with_suffix("").parts)
+                [self.project_name] + list(relative_path.parent.parts)
             )
-            if file_path.name in (cs.INIT_PY, cs.MOD_RS):
-                module_qn = cs.SEPARATOR_DOT.join(
-                    [self.project_name] + list(relative_path.parent.parts)
-                )
 
+        try:
             self._process_calls_in_functions(root_node, module_qn, language, queries)
-            self._process_calls_in_classes(root_node, module_qn, language, queries)
-            self._process_module_level_calls(root_node, module_qn, language, queries)
-
         except Exception as e:
-            logger.error(ls.CALL_PROCESSING_FAILED.format(path=file_path, error=e))
+            logger.error(
+                ls.CALL_FUNCTIONS_FAILED.format(
+                    path=file_path, error=e, trace=traceback.format_exc()
+                )
+            )
+
+        try:
+            self._process_calls_in_classes(root_node, module_qn, language, queries)
+        except Exception as e:
+            logger.error(
+                ls.CALL_CLASSES_FAILED.format(
+                    path=file_path, error=e, trace=traceback.format_exc()
+                )
+            )
+
+        try:
+            self._process_module_level_calls(root_node, module_qn, language, queries)
+        except Exception as e:
+            logger.error(
+                ls.CALL_MODULE_LEVEL_FAILED.format(
+                    path=file_path, error=e, trace=traceback.format_exc()
+                )
+            )
 
     def _process_calls_in_functions(
         self,
@@ -94,78 +114,54 @@ class CallProcessor:
         for func_node in func_nodes:
             if not isinstance(func_node, Node):
                 continue
-            if self._is_method(func_node, lang_config):
-                continue
+            try:
+                if self._is_method(func_node, lang_config):
+                    continue
 
-            if language == cs.SupportedLanguage.CPP:
-                func_name = cpp_utils.extract_function_name(func_node)
-            else:
-                func_name = self._get_node_name(func_node)
-            if not func_name:
-                if func_node.type == cs.TS_ARROW_FUNCTION and func_node.parent:
-                    parent = func_node.parent
-                    parent_type = parent.type
+                if language == cs.SupportedLanguage.CPP:
+                    func_name = cpp_utils.extract_function_name(func_node)
+                else:
+                    func_name = self._get_node_name(func_node)
+                if not func_name:
+                    if func_node.type == cs.TS_ARROW_FUNCTION and func_node.parent:
+                        parent = func_node.parent
+                        parent_type = parent.type
 
-                    if parent_type == "arguments":
-                        ancestor_qn = self._find_nearest_named_ancestor_qn(
-                            func_node, module_qn, lang_config
-                        )
-                        if ancestor_qn:
-                            logger.debug(
-                                f"Arrow in arguments at line {func_node.start_point[0] + 1}: "
-                                f"attributing calls to ancestor {ancestor_qn}"
+                        if parent_type == "arguments":
+                            ancestor_qn = self._find_nearest_named_ancestor_qn(
+                                func_node, module_qn, lang_config
                             )
-                            self._ingest_function_calls(
-                                func_node,
-                                ancestor_qn,
-                                cs.NodeLabel.FUNCTION,
-                                module_qn,
-                                language,
-                                queries,
-                            )
-                        continue
-
-                    if parent_type == "pair":
-                        key_node = parent.child_by_field_name("key")
-                        if key_node:
-                            property_name = (
-                                key_node.text.decode("utf8") if key_node.text else None
-                            )
-                            if property_name:
-                                property_name = property_name.strip("'\"")
-                                func_qn = self._build_nested_qualified_name(
-                                    parent, module_qn, property_name, lang_config
+                            if ancestor_qn:
+                                logger.debug(
+                                    f"Arrow in arguments at line {func_node.start_point[0] + 1}: "
+                                    f"attributing calls to ancestor {ancestor_qn}"
                                 )
-                                if func_qn:
-                                    logger.debug(
-                                        f"Arrow as object property at line {func_node.start_point[0] + 1}: "
-                                        f"name={property_name}, qn={func_qn}"
-                                    )
-                                    self._ingest_function_calls(
-                                        func_node,
-                                        func_qn,
-                                        cs.NodeLabel.FUNCTION,
-                                        module_qn,
-                                        language,
-                                        queries,
-                                    )
-                                    continue
-
-                    if parent_type == "assignment_expression":
-                        left_node = parent.child_by_field_name("left")
-                        if left_node:
-                            if left_node.type == "member_expression":
-                                property_node = left_node.child_by_field_name(
-                                    "property"
+                                self._ingest_function_calls(
+                                    func_node,
+                                    ancestor_qn,
+                                    cs.NodeLabel.FUNCTION,
+                                    module_qn,
+                                    language,
+                                    queries,
                                 )
-                                if property_node and property_node.text:
-                                    property_name = property_node.text.decode("utf8")
+                            continue
+
+                        if parent_type == "pair":
+                            key_node = parent.child_by_field_name("key")
+                            if key_node:
+                                property_name = (
+                                    key_node.text.decode("utf8")
+                                    if key_node.text
+                                    else None
+                                )
+                                if property_name:
+                                    property_name = property_name.strip("'\"")
                                     func_qn = self._build_nested_qualified_name(
                                         parent, module_qn, property_name, lang_config
                                     )
                                     if func_qn:
                                         logger.debug(
-                                            f"Arrow in assignment at line {func_node.start_point[0] + 1}: "
+                                            f"Arrow as object property at line {func_node.start_point[0] + 1}: "
                                             f"name={property_name}, qn={func_qn}"
                                         )
                                         self._ingest_function_calls(
@@ -177,46 +173,88 @@ class CallProcessor:
                                             queries,
                                         )
                                         continue
-                            elif left_node.type == "identifier" and left_node.text:
-                                var_name = left_node.text.decode("utf8")
-                                func_qn = self._build_nested_qualified_name(
-                                    parent, module_qn, var_name, lang_config
-                                )
-                                if func_qn:
-                                    logger.debug(
-                                        f"Arrow in assignment at line {func_node.start_point[0] + 1}: "
-                                        f"name={var_name}, qn={func_qn}"
-                                    )
-                                    self._ingest_function_calls(
-                                        func_node,
-                                        func_qn,
-                                        cs.NodeLabel.FUNCTION,
-                                        module_qn,
-                                        language,
-                                        queries,
-                                    )
-                                    continue
 
-                    logger.debug(
-                        f"Arrow function at line {func_node.start_point[0] + 1} has no name. "
-                        f"Parent: {parent_type} (no handler implemented)"
+                        if parent_type == "assignment_expression":
+                            left_node = parent.child_by_field_name("left")
+                            if left_node:
+                                if left_node.type == "member_expression":
+                                    property_node = left_node.child_by_field_name(
+                                        "property"
+                                    )
+                                    if property_node and property_node.text:
+                                        property_name = property_node.text.decode(
+                                            "utf8"
+                                        )
+                                        func_qn = self._build_nested_qualified_name(
+                                            parent,
+                                            module_qn,
+                                            property_name,
+                                            lang_config,
+                                        )
+                                        if func_qn:
+                                            logger.debug(
+                                                f"Arrow in assignment at line {func_node.start_point[0] + 1}: "
+                                                f"name={property_name}, qn={func_qn}"
+                                            )
+                                            self._ingest_function_calls(
+                                                func_node,
+                                                func_qn,
+                                                cs.NodeLabel.FUNCTION,
+                                                module_qn,
+                                                language,
+                                                queries,
+                                            )
+                                            continue
+                                elif left_node.type == "identifier" and left_node.text:
+                                    var_name = left_node.text.decode("utf8")
+                                    func_qn = self._build_nested_qualified_name(
+                                        parent, module_qn, var_name, lang_config
+                                    )
+                                    if func_qn:
+                                        logger.debug(
+                                            f"Arrow in assignment at line {func_node.start_point[0] + 1}: "
+                                            f"name={var_name}, qn={func_qn}"
+                                        )
+                                        self._ingest_function_calls(
+                                            func_node,
+                                            func_qn,
+                                            cs.NodeLabel.FUNCTION,
+                                            module_qn,
+                                            language,
+                                            queries,
+                                        )
+                                        continue
+
+                        logger.debug(
+                            f"Arrow function at line {func_node.start_point[0] + 1} has no name. "
+                            f"Parent: {parent_type} (no handler implemented)"
+                        )
+                    continue
+                if func_qn := self._build_nested_qualified_name(
+                    func_node, module_qn, func_name, lang_config
+                ):
+                    if func_node.type == cs.TS_ARROW_FUNCTION:
+                        logger.debug(
+                            f"Processing arrow function: name={func_name}, qn={func_qn}, "
+                            f"line={func_node.start_point[0] + 1}"
+                        )
+                    self._ingest_function_calls(
+                        func_node,
+                        func_qn,
+                        cs.NodeLabel.FUNCTION,
+                        module_qn,
+                        language,
+                        queries,
                     )
-                continue
-            if func_qn := self._build_nested_qualified_name(
-                func_node, module_qn, func_name, lang_config
-            ):
-                if func_node.type == cs.TS_ARROW_FUNCTION:
-                    logger.debug(
-                        f"Processing arrow function: name={func_name}, qn={func_qn}, "
-                        f"line={func_node.start_point[0] + 1}"
+            except Exception as e:
+                logger.error(
+                    ls.CALL_FUNC_NODE_FAILED.format(
+                        func_type=func_node.type,
+                        line=func_node.start_point[0] + 1,
+                        module=module_qn,
+                        error=e,
+                        trace=traceback.format_exc(),
                     )
-                self._ingest_function_calls(
-                    func_node,
-                    func_qn,
-                    cs.NodeLabel.FUNCTION,
-                    module_qn,
-                    language,
-                    queries,
                 )
 
     def _find_nearest_named_ancestor_qn(
@@ -285,19 +323,29 @@ class CallProcessor:
         for method_node in method_nodes:
             if not isinstance(method_node, Node):
                 continue
-            method_name = self._get_node_name(method_node)
-            if not method_name:
-                continue
-            method_qn = f"{class_qn}{cs.SEPARATOR_DOT}{method_name}"
-            self._ingest_function_calls(
-                method_node,
-                method_qn,
-                cs.NodeLabel.METHOD,
-                module_qn,
-                language,
-                queries,
-                class_qn,
-            )
+            try:
+                method_name = self._get_node_name(method_node)
+                if not method_name:
+                    continue
+                method_qn = f"{class_qn}{cs.SEPARATOR_DOT}{method_name}"
+                self._ingest_function_calls(
+                    method_node,
+                    method_qn,
+                    cs.NodeLabel.METHOD,
+                    module_qn,
+                    language,
+                    queries,
+                    class_qn,
+                )
+            except Exception as e:
+                logger.error(
+                    ls.CALL_METHOD_NODE_FAILED.format(
+                        line=method_node.start_point[0] + 1,
+                        class_qn=class_qn,
+                        error=e,
+                        trace=traceback.format_exc(),
+                    )
+                )
 
     def _process_calls_in_classes(
         self,
@@ -316,13 +364,23 @@ class CallProcessor:
         for class_node in class_nodes:
             if not isinstance(class_node, Node):
                 continue
-            class_name = self._get_class_name_for_node(class_node, language)
-            if not class_name:
-                continue
-            class_qn = f"{module_qn}{cs.SEPARATOR_DOT}{class_name}"
-            if body_node := class_node.child_by_field_name(cs.FIELD_BODY):
-                self._process_methods_in_class(
-                    body_node, class_qn, module_qn, language, queries
+            try:
+                class_name = self._get_class_name_for_node(class_node, language)
+                if not class_name:
+                    continue
+                class_qn = f"{module_qn}{cs.SEPARATOR_DOT}{class_name}"
+                if body_node := class_node.child_by_field_name(cs.FIELD_BODY):
+                    self._process_methods_in_class(
+                        body_node, class_qn, module_qn, language, queries
+                    )
+            except Exception as e:
+                logger.error(
+                    ls.CALL_CLASS_NODE_FAILED.format(
+                        line=class_node.start_point[0] + 1,
+                        module=module_qn,
+                        error=e,
+                        trace=traceback.format_exc(),
+                    )
                 )
 
     def _process_module_level_calls(
@@ -498,101 +556,112 @@ class CallProcessor:
         for call_node in call_nodes:
             if not isinstance(call_node, Node):
                 continue
+            try:
+                call_name = self._get_call_target_name(call_node)
 
-            call_name = self._get_call_target_name(call_node)
-
-            if is_implicit_return_arrow:
-                if call_name:
-                    logger.debug(
-                        f"Extracted call_name='{call_name}' from call at line {call_node.start_point[0] + 1}"
-                    )
-                else:
-                    logger.debug(
-                        f"Failed to extract call_name from call at line {call_node.start_point[0] + 1}, node type={call_node.type}"
-                    )
-
-            if not call_name:
-                continue
-
-            function_refs = self._extract_function_reference_arguments(
-                call_node, language
-            )
-            for ref_name, ref_node in function_refs:
-                ref_info = self._resolver.resolve_function_call(
-                    ref_name, module_qn, local_var_types, class_context
-                )
-
-                if ref_info:
-                    ref_type, ref_qn = ref_info
-                    logger.debug(f"✅ Function reference: {ref_name} → {ref_qn}")
-
-                    self.ingestor.ensure_relationship_batch(
-                        (caller_type, cs.KEY_QUALIFIED_NAME, caller_qn),
-                        cs.RelationshipType.CALLS,
-                        (ref_type, cs.KEY_QUALIFIED_NAME, ref_qn),
-                    )
-                else:
-                    logger.debug(f"Unresolved reference: {ref_name}")
-
-            if (
-                language == cs.SupportedLanguage.JAVA
-                and call_node.type == cs.TS_METHOD_INVOCATION
-            ):
-                callee_info = self._resolver.resolve_java_method_call(
-                    call_node, module_qn, local_var_types
-                )
-            else:
-                callee_info = self._resolver.resolve_function_call(
-                    call_name, module_qn, local_var_types, class_context
-                )
-            if callee_info:
-                callee_type, callee_qn = callee_info
-            elif builtin_info := self._resolver.resolve_builtin_call(call_name):
-                callee_type, callee_qn = builtin_info
-            elif operator_info := self._resolver.resolve_cpp_operator_call(
-                call_name, module_qn
-            ):
-                callee_type, callee_qn = operator_info
-            else:
-                if caller_node.type == cs.TS_ARROW_FUNCTION:
-                    has_parenthesized_body = any(
-                        child.type == cs.TS_PARENTHESIZED_EXPRESSION
-                        for child in caller_node.children
-                    )
-                    if has_parenthesized_body:
+                if is_implicit_return_arrow:
+                    if call_name:
                         logger.debug(
-                            f"Failed to resolve call '{call_name}' from implicit return arrow '{caller_qn}'"
+                            f"Extracted call_name='{call_name}' from call at line {call_node.start_point[0] + 1}"
                         )
-                has_import_map = (
-                    module_qn in self._resolver.import_processor.import_mapping
+                    else:
+                        logger.debug(
+                            f"Failed to extract call_name from call at line {call_node.start_point[0] + 1}, node type={call_node.type}"
+                        )
+
+                if not call_name:
+                    continue
+
+                function_refs = self._extract_function_reference_arguments(
+                    call_node, language
                 )
-                import_map_size = len(
-                    self._resolver.import_processor.import_mapping.get(module_qn, {})
-                )
+                for ref_name, ref_node in function_refs:
+                    ref_info = self._resolver.resolve_function_call(
+                        ref_name, module_qn, local_var_types, class_context
+                    )
+
+                    if ref_info:
+                        ref_type, ref_qn = ref_info
+                        logger.debug(f"✅ Function reference: {ref_name} → {ref_qn}")
+
+                        self.ingestor.ensure_relationship_batch(
+                            (caller_type, cs.KEY_QUALIFIED_NAME, caller_qn),
+                            cs.RelationshipType.CALLS,
+                            (ref_type, cs.KEY_QUALIFIED_NAME, ref_qn),
+                        )
+                    else:
+                        logger.debug(f"Unresolved reference: {ref_name}")
+
+                if (
+                    language == cs.SupportedLanguage.JAVA
+                    and call_node.type == cs.TS_METHOD_INVOCATION
+                ):
+                    callee_info = self._resolver.resolve_java_method_call(
+                        call_node, module_qn, local_var_types
+                    )
+                else:
+                    callee_info = self._resolver.resolve_function_call(
+                        call_name, module_qn, local_var_types, class_context
+                    )
+                if callee_info:
+                    callee_type, callee_qn = callee_info
+                elif builtin_info := self._resolver.resolve_builtin_call(call_name):
+                    callee_type, callee_qn = builtin_info
+                elif operator_info := self._resolver.resolve_cpp_operator_call(
+                    call_name, module_qn
+                ):
+                    callee_type, callee_qn = operator_info
+                else:
+                    if caller_node.type == cs.TS_ARROW_FUNCTION:
+                        has_parenthesized_body = any(
+                            child.type == cs.TS_PARENTHESIZED_EXPRESSION
+                            for child in caller_node.children
+                        )
+                        if has_parenthesized_body:
+                            logger.debug(
+                                f"Failed to resolve call '{call_name}' from implicit return arrow '{caller_qn}'"
+                            )
+                    has_import_map = (
+                        module_qn in self._resolver.import_processor.import_mapping
+                    )
+                    import_map_size = len(
+                        self._resolver.import_processor.import_mapping.get(
+                            module_qn, {}
+                        )
+                    )
+                    logger.debug(
+                        ls.CALL_UNRESOLVED_DETAILS.format(
+                            call_name=call_name,
+                            caller_qn=caller_qn,
+                            module_qn=module_qn,
+                            has_import_map=has_import_map,
+                            import_map_size=import_map_size,
+                        )
+                    )
+                    continue
                 logger.debug(
-                    ls.CALL_UNRESOLVED_DETAILS.format(
+                    ls.CALL_FOUND.format(
+                        caller=caller_qn,
                         call_name=call_name,
-                        caller_qn=caller_qn,
-                        module_qn=module_qn,
-                        has_import_map=has_import_map,
-                        import_map_size=import_map_size,
+                        callee_type=callee_type,
+                        callee_qn=callee_qn,
                     )
                 )
-                continue
-            logger.debug(
-                ls.CALL_FOUND.format(
-                    caller=caller_qn,
-                    call_name=call_name,
-                    callee_type=callee_type,
-                    callee_qn=callee_qn,
-                )
-            )
 
-            self.ingestor.ensure_relationship_batch(
-                (caller_type, cs.KEY_QUALIFIED_NAME, caller_qn),
-                cs.RelationshipType.CALLS,
-                (callee_type, cs.KEY_QUALIFIED_NAME, callee_qn),
-            )
+                self.ingestor.ensure_relationship_batch(
+                    (caller_type, cs.KEY_QUALIFIED_NAME, caller_qn),
+                    cs.RelationshipType.CALLS,
+                    (callee_type, cs.KEY_QUALIFIED_NAME, callee_qn),
+                )
+            except Exception as e:
+                logger.error(
+                    ls.CALL_INGEST_NODE_FAILED.format(
+                        line=call_node.start_point[0] + 1,
+                        caller=caller_qn,
+                        error=e,
+                        trace=traceback.format_exc(),
+                    )
+                )
 
     def _build_nested_qualified_name(
         self,

@@ -1206,3 +1206,91 @@ class TestProcessCallsInFileErrorHandling:
                 cs.SupportedLanguage.PYTHON,
                 queries,
             )
+
+    def test_function_failure_does_not_block_class_processing(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.PYTHON not in parsers:
+            pytest.skip("Python parser not available")
+
+        test_file = temp_repo / "test_module.py"
+        test_file.write_text("def foo(): pass\nclass Bar:\n    def baz(self): pass")
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        parser = parsers[cs.SupportedLanguage.PYTHON]
+        tree = parser.parse(test_file.read_bytes())
+        root_node = tree.root_node
+
+        with (
+            patch.object(
+                processor,
+                "_process_calls_in_functions",
+                side_effect=RuntimeError("functions exploded"),
+            ),
+            patch.object(
+                processor,
+                "_process_calls_in_classes",
+                wraps=processor._process_calls_in_classes,
+            ) as mock_classes,
+        ):
+            processor.process_calls_in_file(
+                test_file, root_node, cs.SupportedLanguage.PYTHON, queries
+            )
+            mock_classes.assert_called_once()
+
+    def test_per_node_isolation_continues_after_failure(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.PYTHON not in parsers:
+            pytest.skip("Python parser not available")
+
+        test_file = temp_repo / "test_module.py"
+        code = "def first(): pass\ndef second(): pass\ndef third(): pass"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        parser = parsers[cs.SupportedLanguage.PYTHON]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        call_count = 0
+        original_ingest = processor._ingest_function_calls
+
+        def failing_on_second(*args: object, **kwargs: object) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 2:
+                raise RuntimeError("second function exploded")
+            original_ingest(*args, **kwargs)
+
+        with patch.object(
+            processor, "_ingest_function_calls", side_effect=failing_on_second
+        ):
+            processor.process_calls_in_file(
+                test_file, root_node, cs.SupportedLanguage.PYTHON, queries
+            )
+
+        # (H) 3 functions + 1 module-level = 4 calls; failure on #2 doesn't block the rest
+        assert call_count == 4
