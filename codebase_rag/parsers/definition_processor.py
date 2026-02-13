@@ -107,6 +107,7 @@ class DefinitionProcessor(
                     cs.KEY_QUALIFIED_NAME: module_qn,
                     cs.KEY_NAME: file_path.name,
                     cs.KEY_PATH: relative_path_str,
+                    cs.KEY_LANGUAGE: language.value,
                 },
             )
 

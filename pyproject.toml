@@ -1,3 +1,12 @@
+# External System Dependencies (not managed by pip/uv):
+# - cmake: Required for building pymgclient
+# - ripgrep (rg): Required for shell command text searching
+# - Node.js (optional): Recommended for TypeScript/JavaScript projects
+#   Enables native module resolution via require.resolve() for accurate
+#   import path resolution in monorepos and complex TS configs.
+#   Falls back to Python-based resolution if not available.
+# - Docker: Required for running Memgraph graph database
+
 [project]
 name = "graph-code"
 version = "0.0.38"

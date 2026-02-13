@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..constants import SupportedLanguage
 from ..services import IngestorProtocol
@@ -11,8 +12,12 @@ from ..types_defs import (
 from .call_processor import CallProcessor
 from .definition_processor import DefinitionProcessor
 from .import_processor import ImportProcessor
+from .js_ts.tsconfig_resolver import TsConfigResolver
 from .structure_processor import StructureProcessor
 from .type_inference import TypeInferenceEngine
+
+if TYPE_CHECKING:
+    from .workspace.protocol import WorkspaceResolver
 
 
 class ProcessorFactory:
@@ -27,6 +32,7 @@ class ProcessorFactory:
         ast_cache: ASTCacheProtocol,
         unignore_paths: frozenset[str] | None = None,
         exclude_paths: frozenset[str] | None = None,
+        workspace_resolver: "WorkspaceResolver | None" = None,
     ) -> None:
         self.ingestor = ingestor
         self.repo_path = repo_path
@@ -37,6 +43,7 @@ class ProcessorFactory:
         self.ast_cache = ast_cache
         self.unignore_paths = unignore_paths
         self.exclude_paths = exclude_paths
+        self.workspace_resolver = workspace_resolver
 
         self.module_qn_to_file_path: dict[str, Path] = {}
 
@@ -49,12 +56,27 @@ class ProcessorFactory:
     @property
     def import_processor(self) -> ImportProcessor:
         if self._import_processor is None:
+            from .resolvers.factory import create_module_resolver
+
+            tsconfig_resolver = TsConfigResolver(self.repo_path)
+
+            module_resolver = create_module_resolver(
+                language=SupportedLanguage.TS,
+                repo_path=self.repo_path,
+                project_name=self.project_name,
+                workspace_resolver=self.workspace_resolver,
+                tsconfig_resolver=tsconfig_resolver,
+            )
+
             self._import_processor = ImportProcessor(
                 repo_path=self.repo_path,
                 project_name=self.project_name,
                 ingestor=self.ingestor,
                 function_registry=self.function_registry,
+                workspace_resolver=self.workspace_resolver,
+                module_resolver=module_resolver,
             )
+            self._import_processor.tsconfig_resolver = tsconfig_resolver
         return self._import_processor
 
     @property

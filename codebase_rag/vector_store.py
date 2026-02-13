@@ -6,8 +6,12 @@ from .constants import PAYLOAD_NODE_ID, PAYLOAD_QUALIFIED_NAME
 from .utils.dependencies import has_qdrant_client
 
 if has_qdrant_client():
-    from qdrant_client import QdrantClient
-    from qdrant_client.models import Distance, PointStruct, VectorParams
+    from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    from qdrant_client.models import (  # type: ignore[import-not-found]
+        Distance,
+        PointStruct,
+        VectorParams,
+    )
 
     _CLIENT: QdrantClient | None = None
 

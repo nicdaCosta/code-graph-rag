@@ -98,9 +98,19 @@ class CallResolver:
         local_var_types: dict[str, str] | None,
     ) -> tuple[str, str] | None:
         if module_qn not in self.import_processor.import_mapping:
+            logger.debug(ls.CALL_IMPORT_MAP_MISSING.format(module_qn=module_qn))
             return None
 
         import_map = self.import_processor.import_mapping[module_qn]
+        if not import_map:
+            logger.debug(ls.CALL_IMPORT_MAP_EMPTY.format(module_qn=module_qn))
+        else:
+            import_keys = list(import_map.keys())[:10]
+            logger.debug(
+                ls.CALL_IMPORT_MAP_CONTENTS.format(
+                    module_qn=module_qn, import_keys=import_keys
+                )
+            )
 
         if result := self._try_resolve_direct_import(call_name, import_map):
             return result
@@ -202,6 +212,22 @@ class CallResolver:
                 ls.CALL_SAME_MODULE.format(call_name=call_name, qn=same_module_func_qn)
             )
             return self.function_registry[same_module_func_qn], same_module_func_qn
+
+        logger.debug(ls.CALL_REGISTRY_MISSING.format(func_qn=same_module_func_qn))
+        module_funcs = [
+            qn for qn in self.function_registry.keys() if qn.startswith(module_qn)
+        ]
+        logger.debug(
+            ls.CALL_REGISTRY_MODULE_FUNCS.format(
+                count=len(module_funcs), module_qn=module_qn
+            )
+        )
+        if module_funcs:
+            logger.debug(
+                ls.CALL_REGISTRY_EXAMPLES.format(
+                    module_qn=module_qn, examples=module_funcs[:5]
+                )
+            )
         return None
 
     def _try_resolve_via_trie(

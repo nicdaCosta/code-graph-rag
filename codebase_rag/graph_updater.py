@@ -149,9 +149,7 @@ class FunctionRegistryTrie:
 
     def find_ending_with(self, suffix: str) -> list[QualifiedName]:
         if self._simple_name_lookup is not None and suffix in self._simple_name_lookup:
-            # (H) O(1) lookup using the simple_name_lookup index
             return list(self._simple_name_lookup[suffix])
-        # (H) Fallback to linear scan if no index available
         return [qn for qn in self._entries.keys() if qn.endswith(f".{suffix}")]
 
     def find_with_prefix(self, prefix: str) -> list[tuple[QualifiedName, NodeType]]:
@@ -199,7 +197,7 @@ class BoundedASTCache:
 
     def _enforce_limits(self) -> None:
         while len(self.cache) > self.max_entries:
-            self.cache.popitem(last=False)  # (H) Remove least recently used
+            self.cache.popitem(last=False)
 
         if self._should_evict_for_memory():
             entries_to_remove = max(
@@ -243,10 +241,19 @@ class GraphUpdater:
         self.unignore_paths = unignore_paths
         self.exclude_paths = exclude_paths
 
+        from .parsers.workspace.factory import WorkspaceResolverFactory
+
+        self.workspace_resolver_factory = WorkspaceResolverFactory(
+            repo_path=self.repo_path,
+            project_name=self.project_name,
+        )
+        self.workspace_resolver = self.workspace_resolver_factory.create_resolver()
+
         self.factory = ProcessorFactory(
             ingestor=self.ingestor,
             repo_path=self.repo_path,
             project_name=self.project_name,
+            workspace_resolver=self.workspace_resolver,
             queries=self.queries,
             function_registry=self.function_registry,
             simple_name_lookup=self.simple_name_lookup,

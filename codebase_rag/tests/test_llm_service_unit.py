@@ -58,6 +58,32 @@ RETURN n.name"""
         assert result.endswith(";")
         assert "MATCH" in result
 
+    def test_handles_response_with_explanatory_text(self) -> None:
+        """Test cleaning responses where LLM adds explanatory text."""
+        query = """MATCH (f:Function) WHERE f.name = "getAllValidItineraryIds"
+RETURN f.qualified_name
+Alternatively, you could also use MATCH (f:Function)-[:CALLS]->(target:Function)"""
+
+        result = _clean_cypher_response(query)
+
+        assert "Alternatively" not in result
+        assert "MATCH (f:Function) WHERE f.name" in result
+        assert "RETURN f.qualified_name" in result
+        assert result.endswith(";")
+
+    def test_handles_multiline_query_with_note(self) -> None:
+        """Test cleaning multiline queries with explanatory notes at the end."""
+        query = """MATCH (f:Function)
+WHERE f.name = "test"
+RETURN f.name, f.qualified_name
+Note: This query finds all functions named 'test'."""
+
+        result = _clean_cypher_response(query)
+
+        assert "Note:" not in result
+        assert "MATCH (f:Function)" in result
+        assert "RETURN f.name, f.qualified_name" in result
+
 
 class TestCypherGenerator:
     @patch("codebase_rag.services.llm.settings")
