@@ -136,6 +136,8 @@ class TsConfigResolver:
     ) -> str | None:
         for field in cs.TSCONFIG_ENTRY_POINT_FIELDS:
             if value := package_data.get(field):
+                if not isinstance(value, str):
+                    continue
                 entry_path = (package_dir / value).resolve()
                 if entry_path.exists() or self._path_exists_with_extensions(
                     entry_path.with_suffix("")

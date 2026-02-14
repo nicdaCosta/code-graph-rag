@@ -223,6 +223,8 @@ class TypeScriptModuleResolver:
 
         for field in cs.TSCONFIG_ENTRY_POINT_FIELDS:
             if value := pkg_data.get(field):
+                if not isinstance(value, str):
+                    continue
                 entry_path = (package_path / value).resolve()
                 entry_no_ext = entry_path.with_suffix("")
                 for ext in _TS_JS_EXTENSIONS:
