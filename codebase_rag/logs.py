@@ -316,6 +316,10 @@ CALL_INSTANCE_INHERITED = "Instance-resolved inherited call: {call_name} -> {met
 CALL_WILDCARD = "Wildcard-resolved call: {call_name} -> {qn}"
 CALL_SAME_MODULE = "Same-module resolution: {call_name} -> {qn}"
 CALL_TRIE_FALLBACK = "Trie-based fallback resolution: {call_name} -> {qn}"
+CALL_TRIE_REJECTED = "Trie fallback rejected: {call_name} -> {qn} (common_prefix={common_prefix} < {threshold})"
+CALL_TRIE_ALL_REJECTED = (
+    "Trie fallback: all {count} candidates rejected for {call_name}"
+)
 CALL_UNRESOLVED = "Could not resolve call: {call_name}"
 CALL_CHAINED = (
     "Resolved chained call: {call_name} -> {method_qn} (via {obj_expr}:{obj_type})"

@@ -239,10 +239,47 @@ class CallResolver:
             logger.debug(ls.CALL_UNRESOLVED.format(call_name=call_name))
             return None
 
-        possible_matches.sort(
-            key=lambda qn: self._calculate_import_distance(qn, module_qn)
-        )
-        best_candidate_qn = possible_matches[0]
+        caller_parts = module_qn.split(cs.SEPARATOR_DOT)
+        caller_in_test = cs.TRIE_TEST_SEGMENT in caller_parts
+
+        filtered = []
+        for qn in possible_matches:
+            candidate_parts = qn.split(cs.SEPARATOR_DOT)
+            candidate_in_test = cs.TRIE_TEST_SEGMENT in candidate_parts
+            if not caller_in_test and candidate_in_test:
+                continue
+            filtered.append(qn)
+
+        if not filtered:
+            logger.debug(
+                ls.CALL_TRIE_ALL_REJECTED.format(
+                    call_name=call_name, count=len(possible_matches)
+                )
+            )
+            return None
+
+        filtered.sort(key=lambda qn: self._calculate_import_distance(qn, module_qn))
+        best_candidate_qn = filtered[0]
+
+        candidate_parts = best_candidate_qn.split(cs.SEPARATOR_DOT)
+        common_prefix = 0
+        for i in range(min(len(caller_parts), len(candidate_parts))):
+            if caller_parts[i] == candidate_parts[i]:
+                common_prefix += 1
+            else:
+                break
+
+        if common_prefix < cs.TRIE_MIN_COMMON_PREFIX:
+            logger.debug(
+                ls.CALL_TRIE_REJECTED.format(
+                    call_name=call_name,
+                    qn=best_candidate_qn,
+                    common_prefix=common_prefix,
+                    threshold=cs.TRIE_MIN_COMMON_PREFIX,
+                )
+            )
+            return None
+
         logger.debug(
             ls.CALL_TRIE_FALLBACK.format(call_name=call_name, qn=best_candidate_qn)
         )

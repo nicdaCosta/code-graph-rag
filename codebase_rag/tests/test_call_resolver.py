@@ -247,7 +247,7 @@ class TestTryResolveSameModule:
 class TestTryResolveViaTrie:
     def test_resolves_via_trie_match(self, call_resolver: CallResolver) -> None:
         call_resolver.function_registry["proj.utils.helper"] = NodeType.FUNCTION
-        call_resolver.function_registry["proj.other.helper"] = NodeType.FUNCTION
+        call_resolver.function_registry["proj.utils.other.helper"] = NodeType.FUNCTION
 
         result = call_resolver._try_resolve_via_trie("helper", "proj.utils")
         assert result is not None
@@ -263,6 +263,55 @@ class TestTryResolveViaTrie:
         result = call_resolver._try_resolve_via_trie("Class.method", "proj.module")
         assert result is not None
         assert result[1] == "proj.module.Class.method"
+
+    def test_rejects_test_candidate_for_production_caller(
+        self, call_resolver: CallResolver
+    ) -> None:
+        call_resolver.function_registry["banana.libs.test.dispatch"] = NodeType.FUNCTION
+
+        result = call_resolver._try_resolve_via_trie("dispatch", "banana.libs.feature")
+        assert result is None
+
+    def test_allows_test_candidate_for_test_caller(
+        self, call_resolver: CallResolver
+    ) -> None:
+        call_resolver.function_registry["banana.libs.test.dispatch"] = NodeType.FUNCTION
+
+        result = call_resolver._try_resolve_via_trie(
+            "dispatch", "banana.libs.test.suite"
+        )
+        assert result is not None
+        assert result[1] == "banana.libs.test.dispatch"
+
+    def test_rejects_low_common_prefix(self, call_resolver: CallResolver) -> None:
+        call_resolver.function_registry["external.lib.helper"] = NodeType.FUNCTION
+
+        result = call_resolver._try_resolve_via_trie("helper", "different.module")
+        assert result is None
+
+    def test_accepts_sufficient_common_prefix(
+        self, call_resolver: CallResolver
+    ) -> None:
+        call_resolver.function_registry["proj.utils.helper"] = NodeType.FUNCTION
+
+        result = call_resolver._try_resolve_via_trie("helper", "proj.feature")
+        assert result is not None
+        assert result[1] == "proj.utils.helper"
+
+    def test_all_candidates_rejected_by_test_filter(
+        self, call_resolver: CallResolver
+    ) -> None:
+        call_resolver.function_registry["banana.libs.test.useSelector"] = (
+            NodeType.FUNCTION
+        )
+        call_resolver.function_registry["banana.pages.test.useSelector"] = (
+            NodeType.FUNCTION
+        )
+
+        result = call_resolver._try_resolve_via_trie(
+            "useSelector", "banana.libs.feature"
+        )
+        assert result is None
 
 
 class TestTryResolveWildcardImports:
@@ -1015,11 +1064,11 @@ class TestResolveFunctionCallIntegration:
         assert result[1] == "proj.module.local_func"
 
     def test_falls_back_to_trie(self, call_resolver: CallResolver) -> None:
-        call_resolver.function_registry["proj.other.helper"] = NodeType.FUNCTION
+        call_resolver.function_registry["proj.module.utils.helper"] = NodeType.FUNCTION
 
         result = call_resolver.resolve_function_call("helper", "proj.module")
         assert result is not None
-        assert result[1] == "proj.other.helper"
+        assert result[1] == "proj.module.utils.helper"
 
     def test_returns_none_for_unknown(self, call_resolver: CallResolver) -> None:
         result = call_resolver.resolve_function_call("unknown_func", "proj.module")

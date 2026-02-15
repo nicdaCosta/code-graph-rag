@@ -306,6 +306,8 @@ CPP_PARTITION_PREFIX = "partition_"
 TRIE_TYPE_KEY = "__type__"
 TRIE_QN_KEY = "__qn__"
 TRIE_INTERNAL_PREFIX = "__"
+TRIE_MIN_COMMON_PREFIX = 1
+TRIE_TEST_SEGMENT = "test"
 
 
 class UniqueKeyType(StrEnum):
