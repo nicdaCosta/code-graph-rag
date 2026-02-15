@@ -138,6 +138,14 @@ def ingest_exported_function(
 
     function_qn = f"{module_qn}.{function_name}"
 
+    if function_qn in function_registry:
+        ingestor.ensure_relationship_batch(
+            (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
+            cs.RelationshipType.EXPORTS,
+            (cs.NodeLabel.FUNCTION, cs.KEY_QUALIFIED_NAME, function_qn),
+        )
+        return
+
     function_props = {
         cs.KEY_QUALIFIED_NAME: function_qn,
         cs.KEY_NAME: function_name,

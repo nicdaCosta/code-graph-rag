@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -853,6 +854,67 @@ class TestIsExported:
             func_node, cs.SupportedLanguage.PYTHON
         )
         assert result is False
+
+
+class TestExportedFunctionDeduplication:
+    def test_skips_node_creation_when_already_in_registry(self) -> None:
+        mock_node = MagicMock()
+        mock_node.start_point = (0, 0)
+        mock_node.end_point = (1, 0)
+        mock_ingestor = MagicMock()
+        mock_registry: dict[str, str] = {"proj.module.greet": "FUNCTION"}
+        mock_simple_lookup: dict[str, set[str]] = {}
+
+        from codebase_rag.parsers.utils import ingest_exported_function
+
+        ingest_exported_function(
+            function_node=mock_node,
+            function_name="greet",
+            module_qn="proj.module",
+            export_type="es6",
+            ingestor=mock_ingestor,
+            function_registry=mock_registry,
+            simple_name_lookup=mock_simple_lookup,
+            get_docstring_func=lambda _: None,
+            is_export_inside_function_func=lambda _: False,
+        )
+
+        mock_ingestor.ensure_node_batch.assert_not_called()
+        mock_ingestor.ensure_relationship_batch.assert_called_once()
+        rel_call = mock_ingestor.ensure_relationship_batch.call_args
+        assert rel_call.args[1] == cs.RelationshipType.EXPORTS
+
+    def test_full_ingestion_when_not_in_registry(self) -> None:
+        mock_node = MagicMock()
+        mock_node.start_point = (0, 0)
+        mock_node.end_point = (1, 0)
+        mock_ingestor = MagicMock()
+        mock_registry: dict[str, str] = {}
+        mock_simple_lookup: dict[str, set[str]] = defaultdict(set)
+
+        from codebase_rag.parsers.utils import ingest_exported_function
+
+        ingest_exported_function(
+            function_node=mock_node,
+            function_name="greet",
+            module_qn="proj.module",
+            export_type="es6",
+            ingestor=mock_ingestor,
+            function_registry=mock_registry,
+            simple_name_lookup=mock_simple_lookup,
+            get_docstring_func=lambda _: None,
+            is_export_inside_function_func=lambda _: False,
+        )
+
+        mock_ingestor.ensure_node_batch.assert_called_once()
+        assert mock_ingestor.ensure_relationship_batch.call_count == 2
+        rel_types = [
+            call.args[1]
+            for call in mock_ingestor.ensure_relationship_batch.call_args_list
+        ]
+        assert cs.RelationshipType.DEFINES in rel_types
+        assert cs.RelationshipType.EXPORTS in rel_types
+        assert "proj.module.greet" in mock_registry
 
 
 class TestExportedFunctionRelationships:
