@@ -37,33 +37,40 @@ class JsTypeInferenceEngine:
 
             if current.type == cs.TS_VARIABLE_DECLARATOR:
                 declarator_count += 1
-                name_node = current.child_by_field_name("name")
-                value_node = current.child_by_field_name("value")
+                try:
+                    name_node = current.child_by_field_name("name")
+                    value_node = current.child_by_field_name("value")
 
-                if name_node and value_node:
-                    var_name_text = name_node.text
-                    if var_name_text:
-                        var_name = safe_decode_text(name_node)
-                        if var_name is not None:
-                            logger.debug(
-                                ls.JS_VAR_DECLARATOR_FOUND.format(
-                                    var_name=var_name, module_qn=module_qn
-                                )
-                            )
-
-                            if var_type := self._infer_js_variable_type_from_value(
-                                value_node, module_qn
-                            ):
-                                local_var_types[var_name] = var_type
+                    if name_node and value_node:
+                        var_name_text = name_node.text
+                        if var_name_text:
+                            var_name = safe_decode_text(name_node)
+                            if var_name is not None:
                                 logger.debug(
-                                    ls.JS_VAR_INFERRED.format(
-                                        var_name=var_name, var_type=var_type
+                                    ls.JS_VAR_DECLARATOR_FOUND.format(
+                                        var_name=var_name, module_qn=module_qn
                                     )
                                 )
-                            else:
-                                logger.debug(
-                                    ls.JS_VAR_INFER_FAILED.format(var_name=var_name)
-                                )
+
+                                if var_type := self._infer_js_variable_type_from_value(
+                                    value_node, module_qn
+                                ):
+                                    local_var_types[var_name] = var_type
+                                    logger.debug(
+                                        ls.JS_VAR_INFERRED.format(
+                                            var_name=var_name, var_type=var_type
+                                        )
+                                    )
+                                else:
+                                    logger.debug(
+                                        ls.JS_VAR_INFER_FAILED.format(var_name=var_name)
+                                    )
+                except Exception:
+                    logger.debug(
+                        ls.JS_VAR_DECLARATOR_FAILED.format(
+                            line=current.start_point[0] + 1
+                        )
+                    )
 
             stack.extend(reversed(current.children))
 

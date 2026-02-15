@@ -517,9 +517,19 @@ class CallProcessor:
         if not calls_query:
             return
 
-        local_var_types = self._resolver.type_inference.build_local_variable_type_map(
-            caller_node, module_qn, language
-        )
+        try:
+            local_var_types = (
+                self._resolver.type_inference.build_local_variable_type_map(
+                    caller_node, module_qn, language
+                )
+            )
+        except Exception as e:
+            logger.error(
+                ls.CALL_TYPE_INFERENCE_FAILED.format(
+                    caller=caller_qn, error=e, trace=traceback.format_exc()
+                )
+            )
+            local_var_types = {}
 
         cursor = QueryCursor(calls_query)
         captures = cursor.captures(caller_node)

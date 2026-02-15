@@ -355,6 +355,7 @@ CALL_METHOD_NODE_FAILED = (
 CALL_INGEST_NODE_FAILED = (
     "Failed to ingest call at line {line} in {caller}: {error}\n{trace}"
 )
+CALL_TYPE_INFERENCE_FAILED = "Type inference failed for {caller}, continuing with empty type map: {error}\n{trace}"
 TSCONFIG_ENTRY_POINT_FOUND = "Entry point for {package}: {entry}"
 TSCONFIG_REFERENCE_RESOLVED = (
     "Reference resolved: {ref_path} -> {package_name} (entry: {entry})"
@@ -492,6 +493,9 @@ JS_GENERIC_TYPE_EXTRACTED = (
     "Extracted element type from generic: {generic} -> {element}"
 )
 JS_ARRAY_TYPE_EXTRACTED = "Extracted element type from array: {array_type} -> {element}"
+JS_VAR_DECLARATOR_FAILED = (
+    "Failed to process variable declarator at line {line}, skipping"
+)
 
 LUA_VAR_TYPE_MAP_BUILT = "Built Lua variable type map with {count} variables"
 LUA_VAR_INFERRED = "Inferred Lua variable: {var_name} -> {var_type}"

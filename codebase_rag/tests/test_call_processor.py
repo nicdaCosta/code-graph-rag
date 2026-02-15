@@ -1317,3 +1317,39 @@ class TestProcessCallsInFileErrorHandling:
 
         # (H) 3 functions + 1 module-level = 4 calls; failure on #2 doesn't block the rest
         assert call_count == 4
+
+    def test_type_inference_failure_does_not_block_call_processing(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.PYTHON not in parsers:
+            pytest.skip("Python parser not available")
+
+        test_file = temp_repo / "test_module.py"
+        code = "def foo():\n    bar()"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        parser = parsers[cs.SupportedLanguage.PYTHON]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        with patch.object(
+            processor._resolver.type_inference,
+            "build_local_variable_type_map",
+            side_effect=RuntimeError("type inference exploded"),
+        ):
+            # (H) Should not raise — type inference failure is caught and call processing continues
+            processor.process_calls_in_file(
+                test_file, root_node, cs.SupportedLanguage.PYTHON, queries
+            )
