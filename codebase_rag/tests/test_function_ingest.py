@@ -8,7 +8,7 @@ from codebase_rag import constants as cs
 from codebase_rag.graph_updater import GraphUpdater
 from codebase_rag.parser_loader import load_parsers
 from codebase_rag.parsers.definition_processor import DefinitionProcessor
-from codebase_rag.tests.conftest import get_node_names, run_updater
+from codebase_rag.tests.conftest import get_node_names, get_relationships, run_updater
 
 
 def parse_code(
@@ -745,3 +745,173 @@ mod submodule {
         )
         assert "submodule" in result
         assert "inner_func" in result
+
+
+class TestIsJsTsExported:
+    def test_exported_function(
+        self,
+        definition_processor: DefinitionProcessor,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, _ = parsers_and_queries
+        if cs.SupportedLanguage.JS not in parsers:
+            pytest.skip("JavaScript parser not available")
+
+        code = "export function greet() { return 1; }"
+        root = parse_code(code, cs.SupportedLanguage.JS, parsers)
+        func_node = find_first_node_of_type(root, "function_declaration")
+        assert func_node is not None
+
+        result = definition_processor._is_js_ts_exported(func_node)
+        assert result is True
+
+    def test_non_exported_function(
+        self,
+        definition_processor: DefinitionProcessor,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, _ = parsers_and_queries
+        if cs.SupportedLanguage.JS not in parsers:
+            pytest.skip("JavaScript parser not available")
+
+        code = "function helper() { return 1; }"
+        root = parse_code(code, cs.SupportedLanguage.JS, parsers)
+        func_node = find_first_node_of_type(root, "function_declaration")
+        assert func_node is not None
+
+        result = definition_processor._is_js_ts_exported(func_node)
+        assert result is False
+
+    def test_exported_arrow_function(
+        self,
+        definition_processor: DefinitionProcessor,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, _ = parsers_and_queries
+        if cs.SupportedLanguage.JS not in parsers:
+            pytest.skip("JavaScript parser not available")
+
+        code = "export const greet = () => 1;"
+        root = parse_code(code, cs.SupportedLanguage.JS, parsers)
+        arrow_node = find_first_node_of_type(root, "arrow_function")
+        assert arrow_node is not None
+
+        result = definition_processor._is_js_ts_exported(arrow_node)
+        assert result is True
+
+
+class TestIsExported:
+    def test_js_exported_dispatches(
+        self,
+        definition_processor: DefinitionProcessor,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, _ = parsers_and_queries
+        if cs.SupportedLanguage.JS not in parsers:
+            pytest.skip("JavaScript parser not available")
+
+        code = "export function greet() { return 1; }"
+        root = parse_code(code, cs.SupportedLanguage.JS, parsers)
+        func_node = find_first_node_of_type(root, "function_declaration")
+        assert func_node is not None
+
+        result = definition_processor._is_exported(func_node, cs.SupportedLanguage.JS)
+        assert result is True
+
+    def test_ts_exported_dispatches(
+        self,
+        definition_processor: DefinitionProcessor,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, _ = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "export function greet(): void {}"
+        root = parse_code(code, cs.SupportedLanguage.TS, parsers)
+        func_node = find_first_node_of_type(root, "function_declaration")
+        assert func_node is not None
+
+        result = definition_processor._is_exported(func_node, cs.SupportedLanguage.TS)
+        assert result is True
+
+    def test_python_returns_false(
+        self,
+        definition_processor: DefinitionProcessor,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, _ = parsers_and_queries
+        if cs.SupportedLanguage.PYTHON not in parsers:
+            pytest.skip("Python parser not available")
+
+        code = "def my_func(): pass"
+        root = parse_code(code, cs.SupportedLanguage.PYTHON, parsers)
+        func_node = find_first_node_of_type(root, "function_definition")
+        assert func_node is not None
+
+        result = definition_processor._is_exported(
+            func_node, cs.SupportedLanguage.PYTHON
+        )
+        assert result is False
+
+
+class TestExportedFunctionRelationships:
+    @pytest.fixture
+    def js_exports_project(self, temp_repo: Path) -> Path:
+        project_path = temp_repo / "js_exports_test"
+        project_path.mkdir()
+
+        package_json = project_path / "package.json"
+        package_json.write_text('{"name": "js-exports-test", "version": "1.0.0"}')
+
+        main_file = project_path / "main.js"
+        main_file.write_text(
+            """
+export function greet() {
+    return 1;
+}
+
+function helper() {
+    return 2;
+}
+"""
+        )
+
+        return project_path
+
+    def test_exported_js_function_gets_exports_relationship(
+        self, js_exports_project: Path, mock_ingestor: MagicMock
+    ) -> None:
+        run_updater(js_exports_project, mock_ingestor, skip_if_missing="javascript")
+
+        project_name = js_exports_project.name
+        exports_rels = get_relationships(mock_ingestor, "EXPORTS")
+
+        exported_function_qns = {rel.args[2][2] for rel in exports_rels}
+
+        assert f"{project_name}.main.greet" in exported_function_qns
+
+    def test_non_exported_js_function_no_exports_relationship(
+        self, js_exports_project: Path, mock_ingestor: MagicMock
+    ) -> None:
+        run_updater(js_exports_project, mock_ingestor, skip_if_missing="javascript")
+
+        project_name = js_exports_project.name
+        exports_rels = get_relationships(mock_ingestor, "EXPORTS")
+
+        exported_function_qns = {rel.args[2][2] for rel in exports_rels}
+
+        assert f"{project_name}.main.helper" not in exported_function_qns
+
+    def test_exported_js_function_gets_defines_relationship(
+        self, js_exports_project: Path, mock_ingestor: MagicMock
+    ) -> None:
+        run_updater(js_exports_project, mock_ingestor, skip_if_missing="javascript")
+
+        project_name = js_exports_project.name
+        defines_rels = get_relationships(mock_ingestor, "DEFINES")
+
+        defined_function_qns = {rel.args[2][2] for rel in defines_rels}
+
+        assert f"{project_name}.main.greet" in defined_function_qns
+        assert f"{project_name}.main.helper" in defined_function_qns

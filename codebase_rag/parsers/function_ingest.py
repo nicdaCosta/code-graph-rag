@@ -127,11 +127,7 @@ class FunctionIngestMixin:
             return None
 
         func_name = func_qn.split(cs.SEPARATOR_DOT)[-1]
-        is_exported = (
-            cpp_utils.is_exported(func_node)
-            if language == cs.SupportedLanguage.CPP
-            else False
-        )
+        is_exported = self._is_exported(func_node, language)
         return FunctionResolution(func_qn, func_name, is_exported)
 
     def _fallback_function_resolution(
@@ -210,7 +206,24 @@ class FunctionIngestMixin:
         func_qn = self._build_function_qn(
             func_node, module_qn, func_name, language, lang_config
         )
-        return FunctionResolution(func_qn, func_name, is_exported=False)
+        return FunctionResolution(
+            func_qn, func_name, is_exported=self._is_exported(func_node, language)
+        )
+
+    def _is_exported(self, func_node: Node, language: cs.SupportedLanguage) -> bool:
+        if language == cs.SupportedLanguage.CPP:
+            return cpp_utils.is_exported(func_node)
+        if language in cs.JS_TS_LANGUAGES:
+            return self._is_js_ts_exported(func_node)
+        return False
+
+    def _is_js_ts_exported(self, func_node: Node) -> bool:
+        current = func_node.parent
+        while current:
+            if current.type == cs.TS_EXPORT_STATEMENT:
+                return True
+            current = current.parent
+        return False
 
     def _build_function_qn(
         self,
@@ -282,7 +295,7 @@ class FunctionIngestMixin:
             (cs.NodeLabel.FUNCTION, cs.KEY_QUALIFIED_NAME, resolution.qualified_name),
         )
 
-        if resolution.is_exported and language == cs.SupportedLanguage.CPP:
+        if resolution.is_exported:
             self.ingestor.ensure_relationship_batch(
                 (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
                 cs.RelationshipType.EXPORTS,
