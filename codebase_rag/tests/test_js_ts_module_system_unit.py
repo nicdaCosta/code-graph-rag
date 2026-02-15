@@ -1,10 +1,13 @@
+import textwrap
 from collections import defaultdict
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from tree_sitter import Query, QueryCursor
 
 from codebase_rag import constants as cs
+from codebase_rag.parser_loader import load_parsers
 from codebase_rag.parsers.js_ts.module_system import JsTsModuleSystemMixin
 from codebase_rag.tests.conftest import create_mock_node
 
@@ -492,3 +495,75 @@ class TestEdgeCases:
         mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
+
+
+class TestEs6ExportConstQueryCapture:
+    @pytest.fixture(scope="class")
+    def ts_parser_and_language(self) -> tuple:
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+        lang = queries[cs.SupportedLanguage.TS][cs.QUERY_LANGUAGE]
+        return parser, lang
+
+    def _run_export_const_query(self, parser, lang, code: str) -> dict:
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+        cleaned = textwrap.dedent(cs.JS_ES6_EXPORT_CONST_QUERY).strip()
+        query = Query(lang, cleaned)
+        cursor = QueryCursor(query)
+        return cursor.captures(tree.root_node)
+
+    def test_captures_arrow_function_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = "export const handleClick = (e) => { e.preventDefault(); };"
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "handleClick"
+        assert funcs[0].type == cs.TS_ARROW_FUNCTION
+
+    def test_captures_function_expression_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = "export const greet = function(name) { return name; };"
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "greet"
+        assert funcs[0].type == cs.TS_FUNCTION_EXPRESSION
+
+    def test_captures_call_expression_factory_export(
+        self, ts_parser_and_language
+    ) -> None:
+        parser, lang = ts_parser_and_language
+        code = (
+            "export const getFlights = createSelector(selectState, (s) => s.flights);"
+        )
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "getFlights"
+        assert funcs[0].type == cs.TS_CALL_EXPRESSION
+
+    def test_captures_connect_factory_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = "export const mapStateToProps = connect(mapState, mapDispatch);"
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "mapStateToProps"
+        assert funcs[0].type == cs.TS_CALL_EXPRESSION
+
+    def test_skips_string_literal_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = 'export const API_URL = "https://api.example.com";'
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        assert len(names) == 0

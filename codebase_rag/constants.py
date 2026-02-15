@@ -2239,7 +2239,7 @@ JS_ES6_EXPORT_CONST_QUERY = """
   (lexical_declaration
     (variable_declarator
       name: (identifier) @export_name
-      value: [(function_expression) (arrow_function)] @export_function)))
+      value: [(function_expression) (arrow_function) (call_expression)] @export_function)))
 """
 
 JS_ES6_EXPORT_FUNCTION_QUERY = """
