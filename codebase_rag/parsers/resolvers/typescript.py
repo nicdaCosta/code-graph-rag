@@ -484,8 +484,8 @@ class TypeScriptModuleResolver:
                 resolved_qn = self.tsconfig_resolver.resolve_path_mapping(
                     import_specifier, from_module_qn
                 )
-                if resolved_qn and resolved_qn.startswith(f"{self.project_name}."):
-                    parts = resolved_qn[len(self.project_name) + 1 :].split(".")
+                if resolved_qn:
+                    parts = resolved_qn.split(cs.SEPARATOR_DOT)
                     resolved_path = self.repo_path / Path(*parts)
                     for ext in _TS_JS_EXTENSIONS:
                         file_with_ext = (

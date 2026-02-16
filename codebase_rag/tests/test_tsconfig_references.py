@@ -162,3 +162,47 @@ class TestResolvePathMappingWithReferences:
             "@unknown/package", "workspace.apps.main.index"
         )
         assert result is None
+
+
+class TestTsconfigFallbackQnBuilding:
+    def test_import_processor_prepends_project_name(
+        self, tsconfig_workspace: Path
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from codebase_rag.parsers.import_processor import ImportProcessor
+
+        processor = ImportProcessor(
+            repo_path=tsconfig_workspace,
+            project_name="myproject",
+            ingestor=MagicMock(),
+        )
+        processor.tsconfig_resolver = TsConfigResolver(tsconfig_workspace)
+
+        result = processor._resolve_js_module_path(
+            "@scope/lib-a",
+            "myproject.apps.main.index",
+            cs.SupportedLanguage.TS,
+        )
+
+        assert result.startswith("myproject" + cs.SEPARATOR_DOT)
+        assert "index" in result
+
+    def test_typescript_resolver_returns_path_via_tsconfig(
+        self, tsconfig_workspace: Path
+    ) -> None:
+        from codebase_rag.parsers.resolvers.typescript import TypeScriptModuleResolver
+
+        tsconfig_resolver = TsConfigResolver(tsconfig_workspace)
+        resolver = TypeScriptModuleResolver(
+            repo_path=tsconfig_workspace,
+            project_name="myproject",
+            tsconfig_resolver=tsconfig_resolver,
+        )
+
+        from_file = tsconfig_workspace / "apps" / "main" / "index.ts"
+        result = resolver._resolve_via_python("@scope/lib-a", from_file)
+
+        assert result is not None
+        assert isinstance(result, Path)
+        assert result.exists()

@@ -529,7 +529,7 @@ class ImportProcessor:
                     logger.debug(
                         f"tsconfig resolved: {import_path} -> {resolved} (from {current_module})"
                     )
-                    return resolved
+                    return f"{self.project_name}{cs.SEPARATOR_DOT}{resolved}"
 
             if self.workspace_resolver:
                 if resolved := self._try_workspace_resolution(import_path):
