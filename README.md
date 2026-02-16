@@ -662,7 +662,7 @@ The knowledge graph uses the following node types and relationships:
 | Method | OVERRIDES | Method |
 | ModuleImplementation | IMPLEMENTS | ModuleInterface |
 | Project | DEPENDS_ON_EXTERNAL | ExternalPackage |
-| Function, Method | CALLS | Function, Method |
+| Function, Method, Module | CALLS | Function, Method |
 <!-- /SECTION:relationship_schemas -->
 
 ## 🔧 Configuration

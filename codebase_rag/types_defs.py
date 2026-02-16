@@ -599,7 +599,7 @@ RELATIONSHIP_SCHEMAS: tuple[RelationshipSchema, ...] = (
         (NodeLabel.EXTERNAL_PACKAGE,),
     ),
     RelationshipSchema(
-        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+        (NodeLabel.FUNCTION, NodeLabel.METHOD, NodeLabel.MODULE),
         RelationshipType.CALLS,
         (NodeLabel.FUNCTION, NodeLabel.METHOD),
     ),

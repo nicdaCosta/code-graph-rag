@@ -49,6 +49,15 @@ WHERE f.path STARTS WITH 'services'
 RETURN f.path AS path, f.name AS name, labels(f) AS type
 LIMIT {CYPHER_DEFAULT_LIMIT}"""
 
+CYPHER_EXAMPLE_FUNCTION_CALLERS = f"""MATCH (caller)-[:CALLS]->(fn:Function)
+WHERE toLower(fn.name) = 'getfeaturedecision'
+OPTIONAL MATCH (m:Module)-[:DEFINES]->(caller)
+OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
+WITH DISTINCT coalesce(m.path, m2.path) AS file_path
+WHERE file_path IS NOT NULL
+RETURN file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
 CYPHER_EXAMPLE_LIMIT_ONE = """MATCH (f:File) RETURN f.path as path, f.name as name, labels(f) as type LIMIT 1"""
 
 CYPHER_EXPORT_NODES = """
