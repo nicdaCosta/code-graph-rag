@@ -567,3 +567,105 @@ class TestEs6ExportConstQueryCapture:
 
         names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
         assert len(names) == 0
+
+
+class TestEs6ExportBlockQueryCapture:
+    @pytest.fixture(scope="class")
+    def ts_parser_and_language(self) -> tuple:
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+        lang = queries[cs.SupportedLanguage.TS][cs.QUERY_LANGUAGE]
+        return parser, lang
+
+    def _run_export_block_query(self, parser, lang, code: str) -> dict:
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+        cleaned = textwrap.dedent(cs.JS_ES6_EXPORT_BLOCK_QUERY).strip()
+        query = Query(lang, cleaned)
+        cursor = QueryCursor(query)
+        return cursor.captures(tree.root_node)
+
+    def test_captures_named_exports(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = """
+const getFeatureDecision = () => true;
+const getConfigServiceValue = () => 'value';
+export { getFeatureDecision, getConfigServiceValue };
+"""
+        captures = self._run_export_block_query(parser, lang, code)
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        decoded = [n.text.decode(cs.ENCODING_UTF8) for n in names]
+        assert "getFeatureDecision" in decoded
+        assert "getConfigServiceValue" in decoded
+
+    def test_creates_exports_relationship_for_known_function(self) -> None:
+        ingestor = MagicMock()
+        function_registry = defaultdict(set)
+        function_registry["myproject.module.myFunc"] = set()
+
+        mixin = ConcreteModuleSystemMixin(
+            ingestor=ingestor,
+            import_processor=MagicMock(),
+            function_registry=function_registry,
+            simple_name_lookup=defaultdict(set),
+        )
+
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+
+        code = """
+const myFunc = () => true;
+export { myFunc };
+"""
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+
+        mixin._ingest_es6_exports(
+            tree.root_node,
+            "myproject.module",
+            cs.SupportedLanguage.TS,
+            queries,
+        )
+
+        ingestor.ensure_relationship_batch.assert_any_call(
+            (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, "myproject.module"),
+            cs.RelationshipType.EXPORTS,
+            (
+                cs.NodeLabel.FUNCTION,
+                cs.KEY_QUALIFIED_NAME,
+                "myproject.module.myFunc",
+            ),
+        )
+
+    def test_skips_export_for_unknown_function(self) -> None:
+        ingestor = MagicMock()
+        function_registry = defaultdict(set)
+
+        mixin = ConcreteModuleSystemMixin(
+            ingestor=ingestor,
+            import_processor=MagicMock(),
+            function_registry=function_registry,
+            simple_name_lookup=defaultdict(set),
+        )
+
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+
+        code = """
+export { unknownFunc };
+"""
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+
+        mixin._ingest_es6_exports(
+            tree.root_node,
+            "myproject.module",
+            cs.SupportedLanguage.TS,
+            queries,
+        )
+
+        for call_args in ingestor.ensure_relationship_batch.call_args_list:
+            args = call_args[0]
+            if len(args) >= 3:
+                assert args[2] != (
+                    cs.NodeLabel.FUNCTION,
+                    cs.KEY_QUALIFIED_NAME,
+                    "myproject.module.unknownFunc",
+                )

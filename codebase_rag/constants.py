@@ -2206,6 +2206,7 @@ JS_EXPORT_TYPE_COMMONJS = "CommonJS Export"
 JS_EXPORT_TYPE_COMMONJS_MODULE = "CommonJS Module Export"
 JS_EXPORT_TYPE_ES6_FUNCTION = "ES6 Export Function"
 JS_EXPORT_TYPE_ES6_FUNCTION_DECL = "ES6 Export Function Declaration"
+JS_EXPORT_TYPE_ES6_BLOCK = "es6_block"
 
 JS_COMMONJS_DESTRUCTURE_QUERY = """
 (lexical_declaration
@@ -2247,6 +2248,13 @@ JS_ES6_EXPORT_CONST_QUERY = """
 JS_ES6_EXPORT_FUNCTION_QUERY = """
 (export_statement
   [(function_declaration) (generator_function_declaration)] @export_function)
+"""
+
+JS_ES6_EXPORT_BLOCK_QUERY = """
+(export_statement
+  (export_clause
+    (export_specifier
+      name: (identifier) @export_name)))
 """
 
 JS_DYNAMIC_IMPORT_QUERY = """

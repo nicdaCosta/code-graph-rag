@@ -583,6 +583,7 @@ JS_COMMONJS_EXPORTS_QUERY_FAILED = "Failed to process CommonJS exports query: {e
 JS_COMMONJS_EXPORTS_DETECT_FAILED = "Failed to detect CommonJS exports: {error}"
 JS_ES6_EXPORTS_QUERY_FAILED = "Failed to process ES6 exports query: {error}"
 JS_ES6_EXPORTS_DETECT_FAILED = "Failed to detect ES6 exports: {error}"
+JS_ES6_EXPORT_BLOCK_FOUND = "ES6 block export: {name} in {module}"
 
 MCP_INDEXING_REPO = "[MCP] Indexing repository at: {path}"
 MCP_CLEARING_DB = "[MCP] Clearing existing database to avoid conflicts..."

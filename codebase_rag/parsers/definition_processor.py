@@ -137,11 +137,11 @@ class DefinitionProcessor(
             self._ingest_all_functions(root_node, module_qn, language, queries)
             self._ingest_classes_and_methods(root_node, module_qn, language, queries)
             self._ingest_object_literal_methods(root_node, module_qn, language, queries)
-            self._ingest_commonjs_exports(root_node, module_qn, language, queries)
-            self._ingest_es6_exports(root_node, module_qn, language, queries)
             self._ingest_assignment_arrow_functions(
                 root_node, module_qn, language, queries
             )
+            self._ingest_commonjs_exports(root_node, module_qn, language, queries)
+            self._ingest_es6_exports(root_node, module_qn, language, queries)
             self._ingest_prototype_inheritance(root_node, module_qn, language, queries)
 
             self._ingest_css_rules(root_node, module_qn, language, queries)

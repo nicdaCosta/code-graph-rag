@@ -377,5 +377,41 @@ class JsTsModuleSystemMixin:
                 except Exception as e:
                     logger.debug(ls.JS_ES6_EXPORTS_QUERY_FAILED.format(error=e))
 
+                try:
+                    cleaned_query = textwrap.dedent(
+                        cs.JS_ES6_EXPORT_BLOCK_QUERY
+                    ).strip()
+                    query = Query(lang_query, cleaned_query)
+                    cursor = QueryCursor(query)
+                    captures = cursor.captures(root_node)
+                    export_names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+
+                    for export_name_node in export_names:
+                        if function_name := safe_decode_text(export_name_node):
+                            function_qn = (
+                                f"{module_qn}{cs.SEPARATOR_DOT}{function_name}"
+                            )
+                            if function_qn in self.function_registry:
+                                self.ingestor.ensure_relationship_batch(
+                                    (
+                                        cs.NodeLabel.MODULE,
+                                        cs.KEY_QUALIFIED_NAME,
+                                        module_qn,
+                                    ),
+                                    cs.RelationshipType.EXPORTS,
+                                    (
+                                        cs.NodeLabel.FUNCTION,
+                                        cs.KEY_QUALIFIED_NAME,
+                                        function_qn,
+                                    ),
+                                )
+                                logger.debug(
+                                    ls.JS_ES6_EXPORT_BLOCK_FOUND.format(
+                                        name=function_name, module=module_qn
+                                    )
+                                )
+                except Exception as e:
+                    logger.debug(ls.JS_ES6_EXPORTS_QUERY_FAILED.format(error=e))
+
         except Exception as e:
             logger.debug(ls.JS_ES6_EXPORTS_DETECT_FAILED.format(error=e))
