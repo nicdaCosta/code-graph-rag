@@ -320,6 +320,9 @@ CALL_TRIE_REJECTED = "Trie fallback rejected: {call_name} -> {qn} (common_prefix
 CALL_TRIE_ALL_REJECTED = (
     "Trie fallback: all {count} candidates rejected for {call_name}"
 )
+CALL_HOSTING_FUNCTION_ATTRIBUTED = (
+    "Attributed function refs from {call_name} to hosting function {hosting_qn}"
+)
 CALL_UNRESOLVED = "Could not resolve call: {call_name}"
 CALL_CHAINED = (
     "Resolved chained call: {call_name} -> {method_qn} (via {obj_expr}:{obj_type})"

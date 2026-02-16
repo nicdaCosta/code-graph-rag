@@ -1353,3 +1353,151 @@ class TestProcessCallsInFileErrorHandling:
             processor.process_calls_in_file(
                 test_file, root_node, cs.SupportedLanguage.PYTHON, queries
             )
+
+
+class TestHostingFunctionAttribution:
+    def test_hosting_function_attribution_for_module_level_call(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "export const filteredIds = createSelector([depFunc], (x) => x);"
+        test_file = temp_repo / "selectors.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.selectors"
+        hosting_qn = f"{module_qn}.filteredIds"
+        dep_qn = f"{module_qn}.depFunc"
+
+        processor._resolver.function_registry[hosting_qn] = NodeType.FUNCTION
+        processor._resolver.function_registry[dep_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        calls_edges = [
+            c
+            for c in mock_ingestor.ensure_relationship_batch.call_args_list
+            if c.args[1] == cs.RelationshipType.CALLS and c.args[2][2] == dep_qn
+        ]
+
+        # (H) Function ref depFunc should be attributed to hosting function filteredIds, not Module
+        hosting_calls = [
+            c
+            for c in calls_edges
+            if c.args[0][0] == cs.NodeLabel.FUNCTION and c.args[0][2] == hosting_qn
+        ]
+        module_calls = [c for c in calls_edges if c.args[0][0] == cs.NodeLabel.MODULE]
+        assert len(hosting_calls) >= 1
+        assert len(module_calls) == 0
+
+    def test_hosting_function_attribution_fallback_to_module(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "const x = someCall(depFunc);"
+        test_file = temp_repo / "fallback.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.fallback"
+        dep_qn = f"{module_qn}.depFunc"
+
+        # (H) Do NOT register module_qn.x in registry — forces fallback to Module attribution
+        processor._resolver.function_registry[dep_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        ref_calls = [
+            c
+            for c in mock_ingestor.ensure_relationship_batch.call_args_list
+            if c.args[1] == cs.RelationshipType.CALLS and c.args[2][2] == dep_qn
+        ]
+
+        # (H) depFunc should be attributed to Module since x is not in the registry
+        module_calls = [c for c in ref_calls if c.args[0][0] == cs.NodeLabel.MODULE]
+        assert len(module_calls) >= 1
+
+    def test_ancestor_qn_finds_variable_declarator_hosting_function(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "export const selector = createSelector([], (x) => helperFunc(x));"
+        test_file = temp_repo / "derived.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.derived"
+        selector_qn = f"{module_qn}.selector"
+        helper_qn = f"{module_qn}.helperFunc"
+
+        processor._resolver.function_registry[selector_qn] = NodeType.FUNCTION
+        processor._resolver.function_registry[helper_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        helper_calls = [
+            c
+            for c in mock_ingestor.ensure_relationship_batch.call_args_list
+            if c.args[1] == cs.RelationshipType.CALLS and c.args[2][2] == helper_qn
+        ]
+
+        # (H) helperFunc called inside arrow callback should be attributed to selector via _find_nearest_named_ancestor_qn
+        selector_calls = [c for c in helper_calls if c.args[0][2] == selector_qn]
+        assert len(selector_calls) >= 1

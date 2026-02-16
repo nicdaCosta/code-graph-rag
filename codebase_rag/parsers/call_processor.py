@@ -283,6 +283,13 @@ class CallProcessor:
                     )
             elif current.type in lang_config.class_node_types:
                 return None
+            elif current.type == cs.TS_VARIABLE_DECLARATOR:
+                if name_node := current.child_by_field_name(cs.FIELD_NAME):
+                    if name_node.text:
+                        var_name = name_node.text.decode(cs.ENCODING_UTF8)
+                        candidate_qn = f"{module_qn}{cs.SEPARATOR_DOT}{var_name}"
+                        if candidate_qn in self._resolver.function_registry:
+                            return candidate_qn
             current = current.parent
         return module_qn
 
@@ -503,6 +510,22 @@ class CallProcessor:
 
         return identifiers
 
+    def _get_hosting_function_qn(self, call_node: Node, module_qn: str) -> str | None:
+        current = call_node.parent
+        while current:
+            if current.type == cs.TS_VARIABLE_DECLARATOR:
+                if name_node := current.child_by_field_name(cs.FIELD_NAME):
+                    if name_node.text:
+                        var_name = name_node.text.decode(cs.ENCODING_UTF8)
+                        candidate_qn = f"{module_qn}{cs.SEPARATOR_DOT}{var_name}"
+                        if candidate_qn in self._resolver.function_registry:
+                            return candidate_qn
+                return None
+            if current.type in (cs.TS_PROGRAM, cs.TS_MODULE):
+                return None
+            current = current.parent
+        return None
+
     def _ingest_function_calls(
         self,
         caller_node: Node,
@@ -585,6 +608,21 @@ class CallProcessor:
                 function_refs = self._extract_function_reference_arguments(
                     call_node, language
                 )
+
+                ref_caller_type = caller_type
+                ref_caller_qn = caller_qn
+                if caller_type == cs.NodeLabel.MODULE:
+                    if hosting_qn := self._get_hosting_function_qn(
+                        call_node, module_qn
+                    ):
+                        ref_caller_type = cs.NodeLabel.FUNCTION
+                        ref_caller_qn = hosting_qn
+                        logger.debug(
+                            ls.CALL_HOSTING_FUNCTION_ATTRIBUTED.format(
+                                call_name=call_name, hosting_qn=hosting_qn
+                            )
+                        )
+
                 for ref_name, ref_node in function_refs:
                     ref_info = self._resolver.resolve_function_call(
                         ref_name, module_qn, local_var_types, class_context
@@ -595,7 +633,7 @@ class CallProcessor:
                         logger.debug(f"✅ Function reference: {ref_name} → {ref_qn}")
 
                         self.ingestor.ensure_relationship_batch(
-                            (caller_type, cs.KEY_QUALIFIED_NAME, caller_qn),
+                            (ref_caller_type, cs.KEY_QUALIFIED_NAME, ref_caller_qn),
                             cs.RelationshipType.CALLS,
                             (ref_type, cs.KEY_QUALIFIED_NAME, ref_qn),
                         )
