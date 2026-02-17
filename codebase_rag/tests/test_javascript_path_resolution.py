@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from codebase_rag import constants as cs
 from codebase_rag.graph_updater import GraphUpdater
 from codebase_rag.parser_loader import load_parsers
 
@@ -33,7 +34,7 @@ class TestJavaScriptPathResolution:
 
         for import_path, expected in test_cases:
             result = graph_updater.factory.import_processor._resolve_js_module_path(
-                import_path, "test.src.components.Button"
+                import_path, "test.src.components.Button", cs.SupportedLanguage.JS
             )
             assert result == expected, (
                 f"Failed for {import_path}: got {result}, expected {expected}"
@@ -51,7 +52,7 @@ class TestJavaScriptPathResolution:
 
         for import_path, expected in test_cases:
             result = graph_updater.factory.import_processor._resolve_js_module_path(
-                import_path, current_module
+                import_path, current_module, cs.SupportedLanguage.JS
             )
             assert result == expected, (
                 f"Failed for {import_path}: got {result}, expected {expected}"
@@ -70,7 +71,7 @@ class TestJavaScriptPathResolution:
 
         for import_path, expected in test_cases:
             result = graph_updater.factory.import_processor._resolve_js_module_path(
-                import_path, current_module
+                import_path, current_module, cs.SupportedLanguage.JS
             )
             assert result == expected, (
                 f"Failed for {import_path}: got {result}, expected {expected}"
@@ -88,7 +89,7 @@ class TestJavaScriptPathResolution:
 
         for import_path, expected in test_cases:
             result = graph_updater.factory.import_processor._resolve_js_module_path(
-                import_path, current_module
+                import_path, current_module, cs.SupportedLanguage.JS
             )
             assert result == expected, (
                 f"Failed for {import_path}: got {result}, expected {expected}"
@@ -107,7 +108,7 @@ class TestJavaScriptPathResolution:
 
         for import_path, expected in test_cases:
             result = graph_updater.factory.import_processor._resolve_js_module_path(
-                import_path, current_module
+                import_path, current_module, cs.SupportedLanguage.JS
             )
             assert result == expected, (
                 f"Failed for {import_path}: got {result}, expected {expected}"
@@ -127,7 +128,7 @@ class TestJavaScriptPathResolution:
 
         for import_path, expected in test_cases:
             result = graph_updater.factory.import_processor._resolve_js_module_path(
-                import_path, current_module
+                import_path, current_module, cs.SupportedLanguage.JS
             )
             assert result == expected, (
                 f"Failed for {import_path}: got {result}, expected {expected}"
