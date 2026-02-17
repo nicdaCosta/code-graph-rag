@@ -325,6 +325,7 @@ class NodeLabel(StrEnum):
     CLASS = "Class"
     FUNCTION = "Function"
     METHOD = "Method"
+    ANONYMOUS_FUNCTION = "AnonymousFunction"
     INTERFACE = "Interface"
     ENUM = "Enum"
     TYPE = "Type"
@@ -357,6 +358,7 @@ _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
     NodeLabel.CLASS: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.FUNCTION: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.METHOD: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.ANONYMOUS_FUNCTION: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.INTERFACE: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.ENUM: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.TYPE: UniqueKeyType.QUALIFIED_NAME,
@@ -1765,6 +1767,13 @@ PREFIX_IIFE = "iife_"
 PREFIX_IIFE_DIRECT = "iife_direct_"
 PREFIX_ARROW = "arrow"
 PREFIX_FUNC = "func"
+
+ANON_PREFIX_GENERIC = "arrow"
+ANON_PREFIX_JSX = "jsx"
+ANON_PREFIX_HOOK = "hook"
+ANON_PREFIX_METHOD = ""
+ANON_PREFIX_RETURN = "returned"
+ANON_PREFIX_TERNARY = "ternary"
 
 CPP_STD_NAMESPACE = "std"
 CPP_PREFIX_IS = "is_"

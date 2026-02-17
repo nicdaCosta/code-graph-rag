@@ -568,6 +568,9 @@ JS_ASSIGNMENT_ARROW_DETECT_FAILED = (
     "Failed to detect assignment arrow functions: {error}"
 )
 
+ANON_FUNC_CREATED = "AnonymousFunction created: {qn} (context: {context})"
+ANON_FUNC_HASH_COLLISION = "Hash collision for {context}: {hash} → using {hash}_1"
+
 JS_COMMONJS_DESTRUCTURE_FAILED = (
     "Failed to process CommonJS destructuring pattern: {error}"
 )

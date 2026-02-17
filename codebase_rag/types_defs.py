@@ -65,6 +65,7 @@ type ASTNode = Node
 class NodeType(StrEnum):
     FUNCTION = "Function"
     METHOD = "Method"
+    ANONYMOUS_FUNCTION = "AnonymousFunction"
     CLASS = "Class"
     MODULE = "Module"
     INTERFACE = "Interface"
@@ -506,6 +507,10 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         NodeLabel.METHOD,
         "{qualified_name: string, name: string, decorators: list[string]}",
     ),
+    NodeSchema(
+        NodeLabel.ANONYMOUS_FUNCTION,
+        "{qualified_name: string, name: string, start_line: integer, end_line: integer}",
+    ),
     NodeSchema(NodeLabel.INTERFACE, "{qualified_name: string, name: string}"),
     NodeSchema(NodeLabel.ENUM, "{qualified_name: string, name: string}"),
     NodeSchema(NodeLabel.TYPE, "{qualified_name: string, name: string}"),
@@ -600,6 +605,21 @@ RELATIONSHIP_SCHEMAS: tuple[RelationshipSchema, ...] = (
     ),
     RelationshipSchema(
         (NodeLabel.FUNCTION, NodeLabel.METHOD, NodeLabel.MODULE),
+        RelationshipType.CALLS,
+        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+    ),
+    RelationshipSchema(
+        (NodeLabel.MODULE,),
+        RelationshipType.DEFINES,
+        (NodeLabel.ANONYMOUS_FUNCTION,),
+    ),
+    RelationshipSchema(
+        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+        RelationshipType.DEFINES,
+        (NodeLabel.ANONYMOUS_FUNCTION,),
+    ),
+    RelationshipSchema(
+        (NodeLabel.ANONYMOUS_FUNCTION,),
         RelationshipType.CALLS,
         (NodeLabel.FUNCTION, NodeLabel.METHOD),
     ),

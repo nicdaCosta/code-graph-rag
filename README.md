@@ -617,6 +617,7 @@ The knowledge graph uses the following node types and relationships:
 | Class | `{qualified_name: string, name: string, decorators: list[string]}` |
 | Function | `{qualified_name: string, name: string, decorators: list[string]}` |
 | Method | `{qualified_name: string, name: string, decorators: list[string]}` |
+| AnonymousFunction | `{qualified_name: string, name: string, start_line: integer, end_line: integer}` |
 | Interface | `{qualified_name: string, name: string}` |
 | Enum | `{qualified_name: string, name: string}` |
 | Type | `{qualified_name: string, name: string}` |
@@ -663,6 +664,9 @@ The knowledge graph uses the following node types and relationships:
 | ModuleImplementation | IMPLEMENTS | ModuleInterface |
 | Project | DEPENDS_ON_EXTERNAL | ExternalPackage |
 | Function, Method, Module | CALLS | Function, Method |
+| Module | DEFINES | AnonymousFunction |
+| Function, Method | DEFINES | AnonymousFunction |
+| AnonymousFunction | CALLS | Function, Method |
 <!-- /SECTION:relationship_schemas -->
 
 ## 🔧 Configuration
