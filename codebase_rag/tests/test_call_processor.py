@@ -1498,6 +1498,300 @@ class TestHostingFunctionAttribution:
             if c.args[1] == cs.RelationshipType.CALLS and c.args[2][2] == helper_qn
         ]
 
-        # (H) helperFunc called inside arrow callback should be attributed to selector via _find_nearest_named_ancestor_qn
-        selector_calls = [c for c in helper_calls if c.args[0][2] == selector_qn]
-        assert len(selector_calls) >= 1
+        # (H) Arrow callback creates AnonymousFunction node; helperFunc CALLS attributed to it
+        anon_calls = [
+            c for c in helper_calls if c.args[0][0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(anon_calls) >= 1
+
+        # (H) AnonymousFunction is DEFINED by selector (ancestor)
+        defines_edges = [
+            c
+            for c in mock_ingestor.ensure_relationship_batch.call_args_list
+            if c.args[1] == cs.RelationshipType.DEFINES
+            and c.args[0][2] == selector_qn
+            and c.args[2][0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(defines_edges) >= 1
+
+
+class TestAnonymousFunctionNodeCreation:
+    def test_arrow_in_named_function_creates_anon_node(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "function process() { items.map((x) => transform(x)); }"
+        test_file = temp_repo / "anon.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.anon"
+        process_qn = f"{module_qn}.process"
+        transform_qn = f"{module_qn}.transform"
+
+        processor._resolver.function_registry[process_qn] = NodeType.FUNCTION
+        processor._resolver.function_registry[transform_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        # (H) AnonymousFunction node created
+        anon_nodes = [
+            c
+            for c in mock_ingestor.ensure_node_batch.call_args_list
+            if c.args[0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(anon_nodes) >= 1
+
+        anon_props = anon_nodes[0].args[1]
+        assert anon_props[cs.KEY_NAME].startswith("map_")
+        assert anon_props[cs.KEY_QUALIFIED_NAME].startswith(f"{process_qn}.")
+
+    def test_top_level_arrow_creates_module_scoped_anon_node(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "items.forEach((item) => save(item));"
+        test_file = temp_repo / "toplevel.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.toplevel"
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        # (H) AnonymousFunction node created under module
+        anon_nodes = [
+            c
+            for c in mock_ingestor.ensure_node_batch.call_args_list
+            if c.args[0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(anon_nodes) >= 1
+
+        anon_props = anon_nodes[0].args[1]
+        assert anon_props[cs.KEY_QUALIFIED_NAME].startswith(f"{module_qn}.")
+
+    def test_use_effect_callback_creates_hook_anon_node(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "function Component() {\n  React.useEffect(() => fetchData(), []);\n}"
+        test_file = temp_repo / "hook.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.hook"
+        component_qn = f"{module_qn}.Component"
+
+        processor._resolver.function_registry[component_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        anon_nodes = [
+            c
+            for c in mock_ingestor.ensure_node_batch.call_args_list
+            if c.args[0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(anon_nodes) >= 1
+
+        # (H) Hook callback gets hook_useEffect_ prefix
+        anon_props = anon_nodes[0].args[1]
+        assert anon_props[cs.KEY_NAME].startswith("hook_useEffect_")
+
+    def test_defines_edge_created_for_anon_function(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "function outer() { arr.map((x) => x + 1); }"
+        test_file = temp_repo / "defines.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.defines"
+        outer_qn = f"{module_qn}.outer"
+
+        processor._resolver.function_registry[outer_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        # (H) DEFINES edge: outer → AnonymousFunction
+        defines_edges = [
+            c
+            for c in mock_ingestor.ensure_relationship_batch.call_args_list
+            if c.args[1] == cs.RelationshipType.DEFINES
+            and c.args[0][2] == outer_qn
+            and c.args[2][0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(defines_edges) >= 1
+
+    def test_calls_edge_uses_anon_function_as_source(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        code = "function outer() { items.map((x) => doSomething(x)); }"
+        test_file = temp_repo / "calls_source.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.calls_source"
+        outer_qn = f"{module_qn}.outer"
+        do_something_qn = f"{module_qn}.doSomething"
+
+        processor._resolver.function_registry[outer_qn] = NodeType.FUNCTION
+        processor._resolver.function_registry[do_something_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        # (H) CALLS edge from AnonymousFunction to doSomething
+        calls_edges = [
+            c
+            for c in mock_ingestor.ensure_relationship_batch.call_args_list
+            if c.args[1] == cs.RelationshipType.CALLS
+            and c.args[2][2] == do_something_qn
+        ]
+        anon_calls = [
+            c for c in calls_edges if c.args[0][0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(anon_calls) >= 1
+
+    def test_hash_collision_triggers_suffix(
+        self,
+        temp_repo: Path,
+        mock_ingestor: MagicMock,
+        parsers_and_queries: tuple,
+    ) -> None:
+        parsers, queries = parsers_and_queries
+        if cs.SupportedLanguage.TS not in parsers:
+            pytest.skip("TypeScript parser not available")
+
+        # (H) Two identical arrow bodies produce hash collision
+        code = "function outer() {\n  a.map((x) => x + 1);\n  b.map((x) => x + 1);\n}"
+        test_file = temp_repo / "collision.ts"
+        test_file.write_text(code)
+
+        updater = GraphUpdater(
+            ingestor=mock_ingestor,
+            repo_path=temp_repo,
+            parsers=parsers,
+            queries=queries,
+        )
+        processor = updater.factory.call_processor
+
+        module_qn = f"{updater.project_name}.collision"
+        outer_qn = f"{module_qn}.outer"
+
+        processor._resolver.function_registry[outer_qn] = NodeType.FUNCTION
+
+        parser = parsers[cs.SupportedLanguage.TS]
+        tree = parser.parse(code.encode(cs.ENCODING_UTF8))
+        root_node = tree.root_node
+
+        processor.process_calls_in_file(
+            test_file, root_node, cs.SupportedLanguage.TS, queries
+        )
+
+        anon_nodes = [
+            c
+            for c in mock_ingestor.ensure_node_batch.call_args_list
+            if c.args[0] == cs.NodeLabel.ANONYMOUS_FUNCTION
+        ]
+        assert len(anon_nodes) >= 2
+
+        # (H) Second node should have _1 suffix due to collision
+        names = [n.args[1][cs.KEY_NAME] for n in anon_nodes]
+        suffixed = [n for n in names if "_1" in n]
+        assert len(suffixed) >= 1

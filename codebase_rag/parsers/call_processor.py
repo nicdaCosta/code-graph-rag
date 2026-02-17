@@ -10,9 +10,15 @@ from .. import constants as cs
 from .. import logs as ls
 from ..language_spec import LanguageSpec
 from ..services import IngestorProtocol
-from ..types_defs import FunctionRegistryTrieProtocol, LanguageQueries
+from ..types_defs import (
+    FunctionRegistryTrieProtocol,
+    LanguageQueries,
+    NodeType,
+    PropertyDict,
+)
 from .call_resolver import CallResolver
 from .cpp import utils as cpp_utils
+from .hash_generator import generate_unique_hash
 from .import_processor import ImportProcessor
 from .type_inference import TypeInferenceEngine
 from .utils import get_function_captures, is_method_node
@@ -71,8 +77,12 @@ class CallProcessor:
                 [self.project_name] + list(relative_path.parent.parts)
             )
 
+        existing_hashes: set[str] = set()
+
         try:
-            self._process_calls_in_functions(root_node, module_qn, language, queries)
+            self._process_calls_in_functions(
+                root_node, module_qn, language, queries, existing_hashes
+            )
         except Exception as e:
             logger.error(
                 ls.CALL_FUNCTIONS_FAILED.format(
@@ -104,7 +114,10 @@ class CallProcessor:
         module_qn: str,
         language: cs.SupportedLanguage,
         queries: dict[cs.SupportedLanguage, LanguageQueries],
+        existing_hashes: set[str] | None = None,
     ) -> None:
+        if existing_hashes is None:
+            existing_hashes = set()
         result = get_function_captures(root_node, language, queries)
         if not result:
             return
@@ -127,23 +140,32 @@ class CallProcessor:
                         parent = func_node.parent
                         parent_type = parent.type
 
-                        if parent_type == "arguments":
+                        if parent_type == cs.TS_ARGUMENTS:
                             ancestor_qn = self._find_nearest_named_ancestor_qn(
                                 func_node, module_qn, lang_config
                             )
-                            if ancestor_qn:
-                                logger.debug(
-                                    f"Arrow in arguments at line {func_node.start_point[0] + 1}: "
-                                    f"attributing calls to ancestor {ancestor_qn}"
-                                )
-                                self._ingest_function_calls(
-                                    func_node,
-                                    ancestor_qn,
-                                    cs.NodeLabel.FUNCTION,
-                                    module_qn,
-                                    language,
-                                    queries,
-                                )
+                            if not ancestor_qn:
+                                ancestor_qn = module_qn
+                                ancestor_type = cs.NodeLabel.MODULE
+                            else:
+                                ancestor_type = cs.NodeLabel.FUNCTION
+
+                            func_qn = self._create_anonymous_function_node(
+                                func_node,
+                                ancestor_qn,
+                                ancestor_type,
+                                module_qn,
+                                existing_hashes,
+                            )
+
+                            self._ingest_function_calls(
+                                func_node,
+                                func_qn,
+                                cs.NodeLabel.ANONYMOUS_FUNCTION,
+                                module_qn,
+                                language,
+                                queries,
+                            )
                             continue
 
                         if parent_type == "pair":
@@ -292,6 +314,113 @@ class CallProcessor:
                             return candidate_qn
             current = current.parent
         return module_qn
+
+    def _detect_arrow_context(
+        self,
+        arrow_node: Node,
+    ) -> tuple[str, str | None]:
+        parent = arrow_node.parent
+        if not parent:
+            return (cs.ANON_PREFIX_GENERIC, None)
+
+        parent_type = parent.type
+
+        if parent_type == cs.TS_ARGUMENTS:
+            call_parent = parent.parent
+            if call_parent and call_parent.type == cs.TS_CALL_EXPRESSION:
+                func_node = call_parent.child_by_field_name(cs.FIELD_FUNCTION)
+                if func_node and func_node.type == cs.TS_MEMBER_EXPRESSION:
+                    property_node = func_node.child_by_field_name(cs.FIELD_PROPERTY)
+                    if property_node and property_node.text:
+                        method_name = property_node.text.decode(cs.ENCODING_UTF8)
+                        if method_name.startswith(cs.REACT_HOOK_PREFIX):
+                            return (cs.ANON_PREFIX_HOOK, method_name)
+                        if method_name in cs.ARRAY_PROMISE_METHODS:
+                            return (cs.ANON_PREFIX_METHOD, method_name)
+
+        if parent_type == cs.TS_RETURN_STATEMENT:
+            return (cs.ANON_PREFIX_RETURN, None)
+        if parent_type == cs.TS_PARENTHESIZED_EXPRESSION:
+            grandparent = parent.parent
+            if grandparent and grandparent.type == cs.TS_RETURN_STATEMENT:
+                return (cs.ANON_PREFIX_RETURN, None)
+
+        current = parent
+        while current:
+            if current.type == cs.TS_JSX_ATTRIBUTE:
+                for child in current.children:
+                    if child.type == cs.TS_PROPERTY_IDENTIFIER and child.text:
+                        attr_name = child.text.decode(cs.ENCODING_UTF8)
+                        if attr_name.startswith(cs.JSX_EVENT_PREFIX):
+                            return (cs.ANON_PREFIX_JSX, attr_name)
+                return (cs.ANON_PREFIX_JSX, None)
+            if current.type in (cs.TS_JSX_ELEMENT, cs.TS_JSX_SELF_CLOSING_ELEMENT):
+                break
+            current = current.parent
+
+        current = parent
+        while current:
+            if current.type in (cs.TS_TERNARY_EXPRESSION, cs.TS_CONDITIONAL_EXPRESSION):
+                return (cs.ANON_PREFIX_TERNARY, None)
+            if current.type in (
+                cs.TS_STATEMENT_BLOCK,
+                cs.TS_FUNCTION_DECLARATION,
+                cs.TS_ARROW_FUNCTION,
+            ):
+                break
+            current = current.parent
+
+        return (cs.ANON_PREFIX_GENERIC, None)
+
+    def _create_anonymous_function_node(
+        self,
+        arrow_node: Node,
+        parent_qn: str,
+        parent_type: str,
+        module_qn: str,
+        existing_hashes: set[str],
+    ) -> str:
+        context_prefix, method_name = self._detect_arrow_context(arrow_node)
+
+        content_hash = generate_unique_hash(arrow_node, existing_hashes)
+        existing_hashes.add(content_hash)
+
+        if context_prefix == cs.ANON_PREFIX_METHOD and method_name:
+            anon_name = f"{method_name}_{content_hash}"
+            context_display = method_name
+        elif context_prefix == cs.ANON_PREFIX_HOOK and method_name:
+            anon_name = f"{cs.ANON_PREFIX_HOOK}_{method_name}_{content_hash}"
+            context_display = f"{cs.ANON_PREFIX_HOOK}_{method_name}"
+        elif context_prefix == cs.ANON_PREFIX_JSX and method_name:
+            anon_name = f"{cs.ANON_PREFIX_JSX}_{method_name}_{content_hash}"
+            context_display = f"{cs.ANON_PREFIX_JSX}_{method_name}"
+        else:
+            anon_name = f"{context_prefix}_{content_hash}"
+            context_display = context_prefix
+
+        anon_qn = f"{parent_qn}{cs.SEPARATOR_DOT}{anon_name}"
+
+        anon_props: PropertyDict = {
+            cs.KEY_QUALIFIED_NAME: anon_qn,
+            cs.KEY_NAME: anon_name,
+            cs.KEY_START_LINE: arrow_node.start_point[0] + 1,
+            cs.KEY_END_LINE: arrow_node.end_point[0] + 1,
+            cs.KEY_DOCSTRING: None,
+        }
+
+        logger.debug(ls.ANON_FUNC_CREATED.format(qn=anon_qn, context=context_display))
+
+        self.ingestor.ensure_node_batch(cs.NodeLabel.ANONYMOUS_FUNCTION, anon_props)
+
+        self.ingestor.ensure_relationship_batch(
+            (parent_type, cs.KEY_QUALIFIED_NAME, parent_qn),
+            cs.RelationshipType.DEFINES,
+            (cs.NodeLabel.ANONYMOUS_FUNCTION, cs.KEY_QUALIFIED_NAME, anon_qn),
+        )
+
+        self._resolver.function_registry[anon_qn] = NodeType.ANONYMOUS_FUNCTION
+
+        return anon_qn
 
     def _get_rust_impl_class_name(self, class_node: Node) -> str | None:
         class_name = self._get_node_name(class_node, cs.FIELD_TYPE)

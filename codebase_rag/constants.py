@@ -1775,6 +1775,30 @@ ANON_PREFIX_METHOD = ""
 ANON_PREFIX_RETURN = "returned"
 ANON_PREFIX_TERNARY = "ternary"
 
+REACT_HOOK_PREFIX = "use"
+JSX_EVENT_PREFIX = "on"
+ARRAY_PROMISE_METHODS = frozenset(
+    {
+        "map",
+        "filter",
+        "reduce",
+        "forEach",
+        "find",
+        "some",
+        "every",
+        "flatMap",
+        "then",
+        "catch",
+        "finally",
+    }
+)
+
+TS_JSX_ATTRIBUTE = "jsx_attribute"
+TS_JSX_ELEMENT = "jsx_element"
+TS_JSX_SELF_CLOSING_ELEMENT = "jsx_self_closing_element"
+TS_TERNARY_EXPRESSION = "ternary_expression"
+TS_CONDITIONAL_EXPRESSION = "conditional_expression"
+
 CPP_STD_NAMESPACE = "std"
 CPP_PREFIX_IS = "is_"
 CPP_PREFIX_HAS = "has_"
