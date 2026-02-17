@@ -58,6 +58,27 @@ WHERE file_path IS NOT NULL
 RETURN file_path
 LIMIT {CYPHER_DEFAULT_LIMIT}"""
 
+CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS = f"""-- Find all anonymous functions in a module
+MATCH (m:Module {{qualified_name: 'banana.libs.utils.helpers'}})-[:DEFINES]->(af:AnonymousFunction)
+RETURN af.qualified_name, af.name, af.start_line
+
+-- Find all useEffect callbacks that call a function
+MATCH (af:AnonymousFunction)-[:CALLS]->(fn:Function {{name: 'fetchData'}})
+WHERE af.name STARTS WITH 'hook_useEffect_'
+RETURN af.qualified_name, af.start_line
+
+-- Find all JSX onClick handlers
+MATCH (af:AnonymousFunction)
+WHERE af.name STARTS WITH 'jsx_onClick_'
+RETURN af.qualified_name
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_ARRAY_METHOD_CALLBACKS = f"""-- Find all map callbacks in a component
+MATCH (f:Function {{name: 'ComponentA'}})-[:DEFINES]->(af:AnonymousFunction)
+WHERE af.name STARTS WITH 'map_'
+RETURN af.qualified_name, af.start_line
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
 CYPHER_EXAMPLE_LIMIT_ONE = """MATCH (f:File) RETURN f.path as path, f.name as name, labels(f) as type LIMIT 1"""
 
 CYPHER_EXPORT_NODES = """

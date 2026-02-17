@@ -513,11 +513,12 @@ class ImportProcessor:
                             module_parts = fqn_spec.file_to_module_parts(
                                 resolved_path, self.repo_path
                             )
-                            qn = f"{self.project_name}.{'.'.join(module_parts)}"
-                            logger.debug(
-                                f"ModuleResolver: {import_path} -> {qn} (via {resolved_path})"
-                            )
-                            return qn
+                            if module_parts:
+                                qn = f"{self.project_name}.{'.'.join(module_parts)}"
+                                logger.debug(
+                                    f"ModuleResolver: {import_path} -> {qn} (via {resolved_path})"
+                                )
+                                return qn
             except (ValueError, AttributeError, KeyError) as e:
                 logger.debug(f"ModuleResolver failed for {import_path}: {e}")
 
@@ -649,7 +650,6 @@ class ImportProcessor:
                 if (
                     name_node
                     and value_node
-                    and name_node.type == cs.TS_IDENTIFIER
                     and value_node.type == cs.TS_CALL_EXPRESSION
                 ):
                     func_node = value_node.child_by_field_name(cs.FIELD_FUNCTION)
@@ -663,7 +663,6 @@ class ImportProcessor:
                     ):
                         for arg in args_node.children:
                             if arg.type == cs.TS_STRING:
-                                var_name = safe_decode_with_fallback(name_node)
                                 required_module = safe_decode_with_fallback(arg).strip(
                                     "'\""
                                 )
@@ -671,13 +670,30 @@ class ImportProcessor:
                                 resolved_module = self._resolve_js_module_path(
                                     required_module, current_module, language
                                 )
-                                self.import_mapping[current_module][var_name] = (
-                                    resolved_module
-                                )
-                                logger.debug(
-                                    ls.IMP_JS_REQUIRE.format(
-                                        var=var_name, module=resolved_module
+
+                                if name_node.type == cs.TS_IDENTIFIER:
+                                    var_name = safe_decode_with_fallback(name_node)
+                                    self.import_mapping[current_module][var_name] = (
+                                        resolved_module
                                     )
+                                    logger.debug(
+                                        ls.IMP_JS_REQUIRE.format(
+                                            var=var_name, module=resolved_module
+                                        )
+                                    )
+
+                                self.ingestor.ensure_relationship_batch(
+                                    (
+                                        cs.NodeLabel.MODULE,
+                                        cs.KEY_QUALIFIED_NAME,
+                                        current_module,
+                                    ),
+                                    cs.RelationshipType.IMPORTS,
+                                    (
+                                        cs.NodeLabel.MODULE,
+                                        cs.KEY_QUALIFIED_NAME,
+                                        resolved_module,
+                                    ),
                                 )
                                 break
 
