@@ -168,6 +168,67 @@ class CallProcessor:
                             )
                             continue
 
+                        if parent_type == cs.TS_RETURN_STATEMENT:
+                            ancestor_qn = self._find_nearest_named_ancestor_qn(
+                                func_node, module_qn, lang_config
+                            )
+                            if not ancestor_qn:
+                                ancestor_qn = module_qn
+                                ancestor_type = cs.NodeLabel.MODULE
+                            else:
+                                ancestor_type = cs.NodeLabel.FUNCTION
+
+                            func_qn = self._create_anonymous_function_node(
+                                func_node,
+                                ancestor_qn,
+                                ancestor_type,
+                                module_qn,
+                                existing_hashes,
+                            )
+
+                            self._ingest_function_calls(
+                                func_node,
+                                func_qn,
+                                cs.NodeLabel.ANONYMOUS_FUNCTION,
+                                module_qn,
+                                language,
+                                queries,
+                            )
+                            continue
+
+                        if parent_type == cs.TS_PARENTHESIZED_EXPRESSION:
+                            grandparent = parent.parent
+                            if (
+                                grandparent
+                                and grandparent.type == cs.TS_RETURN_STATEMENT
+                            ):
+                                ancestor_qn = self._find_nearest_named_ancestor_qn(
+                                    func_node, module_qn, lang_config
+                                )
+                                if not ancestor_qn:
+                                    ancestor_qn = module_qn
+                                    ancestor_type = cs.NodeLabel.MODULE
+                                else:
+                                    ancestor_type = cs.NodeLabel.FUNCTION
+
+                                func_qn = self._create_anonymous_function_node(
+                                    func_node,
+                                    ancestor_qn,
+                                    ancestor_type,
+                                    module_qn,
+                                    existing_hashes,
+                                )
+
+                                self._ingest_function_calls(
+                                    func_node,
+                                    func_qn,
+                                    cs.NodeLabel.ANONYMOUS_FUNCTION,
+                                    module_qn,
+                                    language,
+                                    queries,
+                                )
+                                continue
+
                         if parent_type == "pair":
                             key_node = parent.child_by_field_name("key")
                             if key_node:
@@ -246,6 +307,41 @@ class CallProcessor:
                                             queries,
                                         )
                                         continue
+
+                        context_prefix, method_name = self._detect_arrow_context(
+                            func_node
+                        )
+
+                        if context_prefix in (
+                            cs.ANON_PREFIX_JSX,
+                            cs.ANON_PREFIX_TERNARY,
+                        ):
+                            ancestor_qn = self._find_nearest_named_ancestor_qn(
+                                func_node, module_qn, lang_config
+                            )
+                            if not ancestor_qn:
+                                ancestor_qn = module_qn
+                                ancestor_type = cs.NodeLabel.MODULE
+                            else:
+                                ancestor_type = cs.NodeLabel.FUNCTION
+
+                            func_qn = self._create_anonymous_function_node(
+                                func_node,
+                                ancestor_qn,
+                                ancestor_type,
+                                module_qn,
+                                existing_hashes,
+                            )
+
+                            self._ingest_function_calls(
+                                func_node,
+                                func_qn,
+                                cs.NodeLabel.ANONYMOUS_FUNCTION,
+                                module_qn,
+                                language,
+                                queries,
+                            )
+                            continue
 
                         logger.debug(
                             f"Arrow function at line {func_node.start_point[0] + 1} has no name. "
