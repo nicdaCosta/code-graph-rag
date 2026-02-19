@@ -565,6 +565,7 @@ The knowledge graph uses the following node types and relationships:
 | Class | `{qualified_name: string, name: string, decorators: list[string]}` |
 | Function | `{qualified_name: string, name: string, decorators: list[string]}` |
 | Method | `{qualified_name: string, name: string, decorators: list[string]}` |
+| AnonymousFunction | `{qualified_name: string, name: string, start_line: integer, end_line: integer}` |
 | Interface | `{qualified_name: string, name: string}` |
 | Enum | `{qualified_name: string, name: string}` |
 | Type | `{qualified_name: string, name: string}` |
@@ -599,8 +600,9 @@ The knowledge graph uses the following node types and relationships:
 | Project, Package, Folder | CONTAINS_FOLDER | Folder |
 | Project, Package, Folder | CONTAINS_FILE | File |
 | Project, Package, Folder | CONTAINS_MODULE | Module |
-| Module | DEFINES | Class, Function |
+| Module | DEFINES | Class, Function, AnonymousFunction |
 | Class | DEFINES_METHOD | Method |
+| Function, Method | DEFINES | AnonymousFunction |
 | Module | IMPORTS | Module |
 | Module | EXPORTS | Class, Function |
 | Module | EXPORTS_MODULE | ModuleInterface |
@@ -610,7 +612,7 @@ The knowledge graph uses the following node types and relationships:
 | Method | OVERRIDES | Method |
 | ModuleImplementation | IMPLEMENTS | ModuleInterface |
 | Project | DEPENDS_ON_EXTERNAL | ExternalPackage |
-| Function, Method | CALLS | Function, Method |
+| Function, Method, AnonymousFunction | CALLS | Function, Method |
 <!-- /SECTION:relationship_schemas -->
 
 ## 🔧 Configuration
