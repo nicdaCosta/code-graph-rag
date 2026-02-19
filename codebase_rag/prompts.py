@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING
 
 from .cypher_queries import (
+    CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE,
+    CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS,
+    CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE,
+    CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS,
     CYPHER_EXAMPLE_CLASS_METHODS,
     CYPHER_EXAMPLE_CLASSES_IN_PATH,
     CYPHER_EXAMPLE_CONTENT_BY_PATH,
@@ -11,6 +15,7 @@ from .cypher_queries import (
     CYPHER_EXAMPLE_FUNCTION_WITH_PATH,
     CYPHER_EXAMPLE_KEYWORD_SEARCH,
     CYPHER_EXAMPLE_LIMIT_ONE,
+    CYPHER_EXAMPLE_PARENT_FUNCTIONS,
     CYPHER_EXAMPLE_PYTHON_FILES,
     CYPHER_EXAMPLE_README,
     CYPHER_EXAMPLE_TASKS,
@@ -70,9 +75,10 @@ This schema models codebases in any supported language (Python, JavaScript, Type
 
 **Property Availability:**
 - `path` exists on: File, Folder, Module, Package, ModuleInterface, ModuleImplementation.
-- `path` does NOT exist on: Function, Method, Class, Interface, Enum, Type, Union.
+- `path` does NOT exist on: Function, Method, Class, AnonymousFunction, Interface, Enum, Type, Union.
 - `qualified_name` exists on all code symbols and Module/Package, but NOT on: File, Folder, Project.
 - `decorators` (list of strings) exists only on: Function, Method, Class.
+- `start_line` and `end_line` (integers) exist only on: AnonymousFunction.
 - `extension` exists only on: File.
 
 **Relationship Direction Rules:**
@@ -82,7 +88,21 @@ This schema models codebases in any supported language (Python, JavaScript, Type
 - CALLS flows between: Function or Method to Function or Method.
 - IMPORTS flows from: Module to Module.
 - INHERITS flows from: subclass Class to superclass Class.
-- IMPLEMENTS flows from: Class to Interface."""
+- IMPLEMENTS flows from: Class to Interface.
+
+**AnonymousFunction Architecture:**
+- AnonymousFunction nodes represent inline arrow functions, callbacks, and JSX handlers (JavaScript/TypeScript only).
+- They are defined BY Function, Method, or Module using the `DEFINES` relationship.
+- They can call named functions/methods using the `CALLS` relationship.
+- AnonymousFunction nodes CANNOT be called by name (they do not appear as targets in CALLS relationships).
+- Properties: AnonymousFunction has `start_line`/`end_line` (NOT `decorators`). Function/Method have `decorators` (NOT line numbers).
+- Naming pattern: Context prefix (jsx_, hook_, map_, returned_, ternary_, arrow_) + 8-character hash.
+- Common queries:
+  - JSX handlers: `WHERE af.name STARTS WITH 'jsx_'`
+  - React hooks: `WHERE af.name STARTS WITH 'hook_useEffect_'`
+  - Array callbacks: `WHERE af.name STARTS WITH 'map_'`
+  - By line range: `WHERE af.start_line >= X AND af.end_line <= Y`
+- When asked "find all functions", default to named functions only UNLESS user mentions "callbacks", "hooks", "handlers", or "anonymous"."""
 
 
 def build_graph_schema_and_rules() -> str:
@@ -228,6 +248,26 @@ cypher// "Show classes in the models directory" or "list classes in src/models"
 cypher// "What methods does UserService have?" or "list methods of class X"
 {CYPHER_EXAMPLE_CLASS_METHODS}
 
+**Pattern: Finding Anonymous Functions in a Module**
+cypher// "Find all anonymous functions in module X" or "Show callbacks in component"
+{CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS}
+
+**Pattern: Finding All Callers (Including Anonymous)**
+cypher// "Who calls handleSubmit?" or "Find all callers including callbacks"
+{CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE}
+
+**Pattern: Finding Parent Functions of Anonymous Functions**
+cypher// "What functions define map callbacks?" or "Show parent functions of hooks"
+{CYPHER_EXAMPLE_PARENT_FUNCTIONS}
+
+**Pattern: Tracing Anonymous Function Call Chains**
+cypher// "What do useEffect hooks call?" or "Show functions called by callbacks"
+{CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS}
+
+**Pattern: Finding Anonymous Functions by Line Range**
+cypher// "Find anonymous functions between lines 50-100" or "Show callbacks in line range"
+{CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE}
+
 **5. Output Format**
 Provide only the Cypher query.
 """
@@ -250,6 +290,12 @@ You are a Neo4j Cypher query generator. You ONLY respond with a valid Cypher que
 7.  **AGGREGATION QUERIES**: When asked "how many" or "count", return ONLY the count:
     - CORRECT: `MATCH (c:Class) RETURN count(c) AS total`
     - WRONG: `MATCH (c:Class) RETURN c.name, count(c) AS total` (returns all items!)
+8.  **AnonymousFunction Property Rules**:
+    - AnonymousFunction nodes have `start_line` and `end_line` properties (NOT `decorators`).
+    - Function and Method nodes have `decorators` property (NOT `start_line`/`end_line` in schema).
+    - When querying for "decorated functions" or "flows/tasks", use Function|Method nodes only.
+    - When querying by line number, use AnonymousFunction nodes.
+    - AnonymousFunction naming: Context prefix (jsx_, hook_, map_, returned_, ternary_, arrow_) + hash.
 
 **Examples:**
 
@@ -311,6 +357,24 @@ You are a Neo4j Cypher query generator. You ONLY respond with a valid Cypher que
 *   **Cypher Query:**
     ```cypher
     {CYPHER_EXAMPLE_CLASS_METHODS}
+    ```
+
+*   **Natural Language:** "Find all useEffect hooks in module X"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS}
+    ```
+
+*   **Natural Language:** "Who calls handleSubmit including callbacks"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE}
+    ```
+
+*   **Natural Language:** "What functions define map callbacks"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_PARENT_FUNCTIONS}
     ```
 """
 
