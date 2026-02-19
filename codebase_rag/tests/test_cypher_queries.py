@@ -6,6 +6,10 @@ import pytest
 
 from codebase_rag.cypher_queries import (
     CYPHER_DELETE_ALL,
+    CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE,
+    CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS,
+    CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE,
+    CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS,
     CYPHER_EXAMPLE_CLASS_METHODS,
     CYPHER_EXAMPLE_CLASSES_IN_PATH,
     CYPHER_EXAMPLE_CONTENT_BY_PATH,
@@ -16,6 +20,7 @@ from codebase_rag.cypher_queries import (
     CYPHER_EXAMPLE_FUNCTION_WITH_PATH,
     CYPHER_EXAMPLE_KEYWORD_SEARCH,
     CYPHER_EXAMPLE_LIMIT_ONE,
+    CYPHER_EXAMPLE_PARENT_FUNCTIONS,
     CYPHER_EXAMPLE_PYTHON_FILES,
     CYPHER_EXAMPLE_README,
     CYPHER_EXAMPLE_TASKS,
@@ -405,6 +410,11 @@ ALL_EXAMPLE_CONSTANTS = [
     CYPHER_EXAMPLE_TASKS,
     CYPHER_EXAMPLE_CLASSES_IN_PATH,
     CYPHER_EXAMPLE_CLASS_METHODS,
+    CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS,
+    CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE,
+    CYPHER_EXAMPLE_PARENT_FUNCTIONS,
+    CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS,
+    CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE,
 ]
 
 # (H) CYPHER_EXAMPLE_FIND_FILE uses exact match so no LIMIT needed
@@ -461,6 +471,32 @@ class TestCypherExampleConstantsUnit:
     def test_no_example_uses_file_contains_module(self) -> None:
         for example in ALL_EXAMPLE_CONSTANTS:
             assert "File)-[:CONTAINS_MODULE]" not in example
+
+    def test_anonymous_functions_example_uses_defines(self) -> None:
+        assert "[:DEFINES]" in CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS
+        assert "AnonymousFunction" in CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS
+
+    def test_anonymous_callers_includes_labels_function(self) -> None:
+        assert "labels(caller)" in CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE
+        assert "[:CALLS]" in CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE
+
+    def test_parent_functions_uses_starts_with(self) -> None:
+        assert "STARTS WITH" in CYPHER_EXAMPLE_PARENT_FUNCTIONS
+        assert "[:DEFINES]" in CYPHER_EXAMPLE_PARENT_FUNCTIONS
+
+    def test_anonymous_call_chains_uses_calls_relationship(self) -> None:
+        assert "[:CALLS]" in CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS
+        assert "AnonymousFunction" in CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS
+
+    def test_anonymous_by_line_range_uses_line_properties(self) -> None:
+        assert "start_line" in CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE
+        assert "end_line" in CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE
+        assert "[:DEFINES*]" in CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE
+
+    def test_find_callers_now_supports_anonymous_functions(self) -> None:
+        assert "AnonymousFunction" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "m3.path" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "m4.path" in CYPHER_EXAMPLE_FIND_CALLERS
 
 
 class TestSchemaSemanticNotesUnit:
@@ -529,12 +565,20 @@ EXAMPLE_GRAPH_FIXTURE = (
     "name: 'UserService'}) "
     "CREATE (mth:Method {qualified_name: 'app.models.UserService.validate', "
     "name: 'validate'}) "
+    "CREATE (af1:AnonymousFunction {qualified_name: 'app.handlers.handleRequest.map_a1b2c3d4', "
+    "name: 'map_a1b2c3d4', start_line: 15, end_line: 17}) "
+    "CREATE (af2:AnonymousFunction {qualified_name: 'app.models.UserService.validate.hook_useEffect_e5f6g7h8', "
+    "name: 'hook_useEffect_e5f6g7h8', start_line: 42, end_line: 48}) "
     "CREATE (mod1)-[:DEFINES]->(fn1) "
     "CREATE (mod2)-[:DEFINES]->(fn2) "
     "CREATE (mod3)-[:DEFINES]->(cls) "
     "CREATE (cls)-[:DEFINES_METHOD]->(mth) "
+    "CREATE (fn2)-[:DEFINES]->(af1) "
+    "CREATE (mth)-[:DEFINES]->(af2) "
     "CREATE (fn2)-[:CALLS]->(fn1) "
-    "CREATE (mth)-[:CALLS]->(fn1)"
+    "CREATE (mth)-[:CALLS]->(fn1) "
+    "CREATE (af1)-[:CALLS]->(fn1) "
+    "CREATE (af2)-[:CALLS]->(fn1)"
 )
 
 
@@ -613,3 +657,53 @@ class TestCypherExampleQueriesIntegration:
         assert results[0]["method_name"] == "validate"
         assert results[0]["class_name"] == "UserService"
         assert results[0]["file_path"] == "src/models/user.py"
+
+    def test_find_callers_returns_anonymous_function_caller(
+        self, memgraph_ingestor: MemgraphIngestor
+    ) -> None:
+        self._setup_graph(memgraph_ingestor)
+        query = CYPHER_EXAMPLE_FIND_CALLERS.replace("targetFunctionName", "processData")
+
+        results = memgraph_ingestor._execute_query(query)
+
+        callers = {r["caller_name"] for r in results}
+        assert "map_a1b2c3d4" in callers
+        assert "hook_useEffect_e5f6g7h8" in callers
+        paths = {r["file_path"] for r in results}
+        assert "src/handlers.py" in paths
+        assert "src/models/user.py" in paths
+
+    def test_find_callers_returns_all_caller_types(
+        self, memgraph_ingestor: MemgraphIngestor
+    ) -> None:
+        self._setup_graph(memgraph_ingestor)
+        query = CYPHER_EXAMPLE_FIND_CALLERS.replace("targetFunctionName", "processData")
+
+        results = memgraph_ingestor._execute_query(query)
+
+        assert len(results) == 4
+
+    def test_anonymous_functions_example_returns_results(
+        self, memgraph_ingestor: MemgraphIngestor
+    ) -> None:
+        self._setup_graph(memgraph_ingestor)
+        query = CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS.replace(
+            "myapp.components.button", "app.handlers"
+        )
+
+        results = memgraph_ingestor._execute_query(query)
+
+        assert len(results) == 1
+        assert results[0]["name"] == "map_a1b2c3d4"
+        assert results[0]["line"] == 15
+
+    def test_parent_functions_example_returns_results(
+        self, memgraph_ingestor: MemgraphIngestor
+    ) -> None:
+        self._setup_graph(memgraph_ingestor)
+
+        results = memgraph_ingestor._execute_query(CYPHER_EXAMPLE_PARENT_FUNCTIONS)
+
+        assert len(results) == 1
+        assert "handleRequest" in results[0]["parent_qn"]
+        assert "map_a1b2c3d4" in results[0]["callback_qn"]
