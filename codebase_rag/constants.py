@@ -323,6 +323,7 @@ class NodeLabel(StrEnum):
     CLASS = "Class"
     FUNCTION = "Function"
     METHOD = "Method"
+    ANONYMOUS_FUNCTION = "AnonymousFunction"
     INTERFACE = "Interface"
     ENUM = "Enum"
     TYPE = "Type"
@@ -341,6 +342,7 @@ _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
     NodeLabel.CLASS: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.FUNCTION: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.METHOD: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.ANONYMOUS_FUNCTION: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.INTERFACE: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.ENUM: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.TYPE: UniqueKeyType.QUALIFIED_NAME,
