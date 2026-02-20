@@ -7,6 +7,7 @@ from loguru import logger
 from tree_sitter import Node, Parser
 
 from . import constants as cs
+from . import cypher_queries as cq
 from . import logs as ls
 from .config import settings
 from .language_spec import LANGUAGE_FQN_SPECS, get_language_spec
@@ -227,6 +228,7 @@ class GraphUpdater:
         queries: dict[cs.SupportedLanguage, LanguageQueries],
         unignore_paths: frozenset[str] | None = None,
         exclude_paths: frozenset[str] | None = None,
+        file_filter: list[Path] | None = None,
     ):
         self.ingestor = ingestor
         self.repo_path = repo_path
@@ -240,6 +242,7 @@ class GraphUpdater:
         self.ast_cache = BoundedASTCache()
         self.unignore_paths = unignore_paths
         self.exclude_paths = exclude_paths
+        self.file_filter = file_filter
 
         from .parsers.workspace.factory import WorkspaceResolverFactory
 
@@ -268,14 +271,36 @@ class GraphUpdater:
             or filepath.suffix.lower() == cs.CSPROJ_SUFFIX
         )
 
+    def _load_function_registry_from_graph(self) -> None:
+        if not isinstance(self.ingestor, QueryProtocol):
+            logger.warning(ls.SCAN_REGISTRY_PRELOAD_NO_QUERY)
+            return
+        results = self.ingestor.fetch_all(cq.CYPHER_LOAD_FUNCTION_REGISTRY)
+        for row in results:
+            qn = row.get("qn")
+            raw_type = row.get("type")
+            if isinstance(qn, str) and isinstance(raw_type, str):
+                try:
+                    node_type = NodeType(raw_type)
+                except ValueError:
+                    continue
+                self.function_registry.insert(qn, node_type)
+                simple_name = qn.rsplit(".", 1)[-1]
+                self.simple_name_lookup[simple_name].add(qn)
+        logger.info(ls.SCAN_REGISTRY_PRELOADED.format(count=len(results)))
+
     def run(self) -> None:
         self.ingestor.ensure_node_batch(
             cs.NODE_PROJECT, {cs.KEY_NAME: self.project_name}
         )
         logger.info(ls.ENSURING_PROJECT.format(name=self.project_name))
 
-        logger.info(ls.PASS_1_STRUCTURE)
-        self.factory.structure_processor.identify_structure()
+        if self.file_filter:
+            logger.info(ls.SCAN_FILE_FILTER_ACTIVE.format(count=len(self.file_filter)))
+            self._load_function_registry_from_graph()
+        else:
+            logger.info(ls.PASS_1_STRUCTURE)
+            self.factory.structure_processor.identify_structure()
 
         logger.info(ls.PASS_2_FILES)
         self._process_files()
@@ -325,7 +350,10 @@ class GraphUpdater:
                 logger.debug(ls.CLEANED_SIMPLE_NAME.format(name=simple_name))
 
     def _process_files(self) -> None:
-        for filepath in self.repo_path.rglob("*"):
+        files_iter = (
+            iter(self.file_filter) if self.file_filter else self.repo_path.rglob("*")
+        )
+        for filepath in files_iter:
             if filepath.is_file() and not should_skip_path(
                 filepath,
                 self.repo_path,

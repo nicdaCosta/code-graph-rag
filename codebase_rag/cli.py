@@ -109,6 +109,11 @@ def start(
         "--log-file",
         help=ch.HELP_START_LOG_FILE,
     ),
+    files: list[str] | None = typer.Option(
+        None,
+        "--files",
+        help=ch.HELP_START_FILES,
+    ),
 ) -> None:
     app_context.session.confirm_edits = not no_confirm
 
@@ -153,6 +158,7 @@ def start(
 
             parsers, queries = load_parsers()
 
+            file_filter = [repo_to_update / f for f in files] if files else None
             updater = GraphUpdater(
                 ingestor,
                 repo_to_update,
@@ -160,6 +166,7 @@ def start(
                 queries,
                 unignore_paths,
                 exclude_paths,
+                file_filter=file_filter,
             )
             updater.run()
 

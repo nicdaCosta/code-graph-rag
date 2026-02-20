@@ -281,6 +281,11 @@ UNEXPECTED = "An unexpected error occurred: {error}"
 EXPORT_ERROR = "Export error: {error}"
 INDEXING_FAILED = "Indexing failed"
 SCAN_LOG_FILE_CONFIGURED = "Scan log file: {path}"
+SCAN_FILE_FILTER_ACTIVE = "File filter active: {count} file(s) targeted"
+SCAN_REGISTRY_PRELOADED = "Function registry preloaded: {count} entries from graph"
+SCAN_REGISTRY_PRELOAD_NO_QUERY = (
+    "Ingestor does not support queries — registry preload skipped"
+)
 PATH_NOT_IN_QUESTION = (
     "Could not find original path in question for replacement: {path}"
 )
@@ -384,6 +389,10 @@ TSCONFIG_REFERENCE_PATHS_BUILT = (
 )
 TSCONFIG_MERGED_PATHS = (
     "Merged {workspace} workspace + {reference} reference paths ({total} total)"
+)
+TSCONFIG_ROOT_REFS_FALLBACK = "Trying root tsconfig references for: {import_path}"
+TSCONFIG_ROOT_REFS_RESOLVED = (
+    "Root tsconfig references resolved {import_path} → {result}"
 )
 CALL_UNRESOLVED_DETAILS = (
     "❌ UNRESOLVED CALL: {call_name} in {caller_qn}\n"

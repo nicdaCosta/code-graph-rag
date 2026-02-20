@@ -108,6 +108,14 @@ RETURN n.name AS name, n.start_line AS start, n.end_line AS end, m.path AS path,
 LIMIT 1
 """
 
+CYPHER_LOAD_FUNCTION_REGISTRY = """
+MATCH (n)
+WHERE n.qualified_name IS NOT NULL
+  AND ANY(label IN labels(n) WHERE label IN ['Function', 'Method', 'Class', 'AnonymousFunction'])
+RETURN n.qualified_name AS qn,
+       [l IN labels(n) WHERE l IN ['Function', 'Method', 'Class', 'AnonymousFunction']][0] AS type
+"""
+
 
 def wrap_with_unwind(query: str) -> str:
     return f"UNWIND $batch AS row\n{query}"
