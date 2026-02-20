@@ -495,8 +495,11 @@ class TestCypherExampleConstantsUnit:
 
     def test_find_callers_now_supports_anonymous_functions(self) -> None:
         assert "AnonymousFunction" in CYPHER_EXAMPLE_FIND_CALLERS
-        assert "m3.path" in CYPHER_EXAMPLE_FIND_CALLERS
-        assert "m4.path" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "CALL {" in CYPHER_EXAMPLE_FIND_CALLERS
+        union_count = CYPHER_EXAMPLE_FIND_CALLERS.count("UNION")
+        assert union_count >= 2
+        assert "'AnonymousFunction' IN labels(caller)" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "substring(caller.qualified_name" in CYPHER_EXAMPLE_FIND_CALLERS
 
 
 class TestSchemaSemanticNotesUnit:
