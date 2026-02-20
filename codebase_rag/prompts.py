@@ -102,7 +102,70 @@ This schema models codebases in any supported language (Python, JavaScript, Type
   - React hooks: `WHERE af.name STARTS WITH 'hook_useEffect_'`
   - Array callbacks: `WHERE af.name STARTS WITH 'map_'`
   - By line range: `WHERE af.start_line >= X AND af.end_line <= Y`
-- When asked "find all functions", default to named functions only UNLESS user mentions "callbacks", "hooks", "handlers", or "anonymous"."""
+- When asked "find all functions", default to named functions only UNLESS user mentions "callbacks", "hooks", "handlers", or "anonymous".
+
+**Critical: File Path Resolution for Callers**
+
+When finding files that call a function, caller nodes have DIFFERENT path resolution strategies based on their type:
+
+1. **Module callers**: Use `caller.path` property DIRECTLY
+   - Module nodes represent files and have `.path` property
+   - INCORRECT: `(m:Module)-[:DEFINES]->(caller:Module)` — this relationship does NOT exist in the schema
+   - CORRECT: `WITH caller WHERE 'Module' IN labels(caller) RETURN caller.path AS file_path`
+   - Why: Modules ARE the files themselves when module-level code calls a function
+
+2. **Function/Method callers**: Traverse to defining Module via [:DEFINES]
+   - Functions: `(m:Module)-[:DEFINES]->(caller:Function)` then use `m.path`
+   - Methods: `(m:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller:Method)` then use `m.path`
+   - Why: Functions/Methods don't have `.path` property - must traverse to parent Module
+
+3. **AnonymousFunction callers**: Extract module QN from qualified_name, match Module
+   - AnonymousFunction nodes have NO incoming [:DEFINES] edges (orphaned in current schema)
+   - CANNOT use traversal - relationship doesn't exist
+   - Module QN = qualified_name without last component (function name + dot)
+   - Example: `banana.lib.src.Component.test.arrow_abc123` → module QN = `banana.lib.src.Component.test`
+   - Query pattern:
+     ```
+     WITH substring(caller.qualified_name, 0, size(caller.qualified_name) - size(caller.name) - 1) AS module_qn
+     OPTIONAL MATCH (m:Module {qualified_name: module_qn})
+     WHERE m IS NOT NULL
+     RETURN m.path AS file_path
+     ```
+   - Why: AnonymousFunction's qualified_name encodes parent module, but no relationship exists to traverse
+
+**Pattern: Finding All Files That Call a Function (UNION approach)**
+
+Use this pattern when user asks "which files call X" or "how many files use X":
+
+```cypher
+MATCH (caller)-[:CALLS]->(target:Function|Method)
+WHERE toLower(target.name) = toLower('targetFunction')
+WITH DISTINCT caller, target
+CALL {
+  WITH caller, target
+  WITH caller, target WHERE 'Module' IN labels(caller)
+  RETURN caller, target, caller.path AS file_path
+  UNION
+  WITH caller, target
+  WITH caller, target WHERE 'Function' IN labels(caller) OR 'Method' IN labels(caller)
+  OPTIONAL MATCH (m:Module)-[:DEFINES]->(caller)
+  OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
+  WITH caller, target, coalesce(m.path, m2.path) AS fp
+  WHERE fp IS NOT NULL
+  RETURN caller, target, fp AS file_path
+  UNION
+  WITH caller, target
+  WITH caller, target WHERE 'AnonymousFunction' IN labels(caller)
+  WITH caller, target, substring(caller.qualified_name, 0, size(caller.qualified_name) - size(caller.name) - 1) AS module_qn
+  OPTIONAL MATCH (m:Module {qualified_name: module_qn})
+  WHERE m IS NOT NULL
+  RETURN caller, target, m.path AS file_path
+}
+RETURN DISTINCT file_path, caller.name AS caller_name, target.name AS called_function
+LIMIT 50
+```
+
+**Why UNION is necessary:** A single OPTIONAL MATCH pattern cannot handle 3 fundamentally different resolution strategies. Module needs direct property access, Function/Method need traversal, AnonymousFunction needs string manipulation + lookup. Attempting to coalesce all paths in one pattern results in 70% data loss."""
 
 
 def build_graph_schema_and_rules() -> str:
