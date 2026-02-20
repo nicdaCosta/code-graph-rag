@@ -92,3 +92,15 @@ class ToolMetadata:
     input_schema: MCPInputSchema
     handler: MCPHandlerType
     returns_json: bool
+
+
+@dataclass
+class CallProcessingMetrics:
+    files_attempted: int = 0
+    files_with_errors: int = 0
+    total_call_nodes: int = 0
+    calls_resolved: int = 0
+    calls_unresolved: int = 0
+    calls_errored: int = 0
+    resolution_by_strategy: dict[str, int] = field(default_factory=dict)
+    files_with_zero_calls: list[str] = field(default_factory=list)

@@ -1174,6 +1174,10 @@ KEYWORD_SUPER = "super"
 KEYWORD_SELF = "self"
 KEYWORD_CONSTRUCTOR = "constructor"
 
+RESOLUTION_STRATEGY_FUNCTION_CALL = "function_call"
+RESOLUTION_STRATEGY_BUILTIN_CALL = "builtin_call"
+RESOLUTION_STRATEGY_CPP_OPERATOR = "cpp_operator"
+
 JS_BUILTIN_TYPES: frozenset[str] = frozenset(
     {
         "Array",

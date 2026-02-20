@@ -9,6 +9,7 @@ from tree_sitter import Node, QueryCursor
 from .. import constants as cs
 from .. import logs as ls
 from ..language_spec import LanguageSpec
+from ..models import CallProcessingMetrics
 from ..services import IngestorProtocol
 from ..types_defs import (
     FunctionRegistryTrieProtocol,
@@ -45,6 +46,7 @@ class CallProcessor:
             type_inference=type_inference,
             class_inheritance=class_inheritance,
         )
+        self.metrics = CallProcessingMetrics()
 
     def _get_node_name(self, node: Node, field: str = cs.FIELD_NAME) -> str | None:
         name_node = node.child_by_field_name(field)
@@ -66,6 +68,7 @@ class CallProcessor:
         language: cs.SupportedLanguage,
         queries: dict[cs.SupportedLanguage, LanguageQueries],
     ) -> None:
+        self.metrics.files_attempted += 1
         relative_path = file_path.relative_to(self.repo_path)
         logger.debug(ls.CALL_PROCESSING_FILE.format(path=relative_path))
 
@@ -78,12 +81,15 @@ class CallProcessor:
             )
 
         existing_hashes: set[str] = set()
+        had_error = False
+        resolved_before = self.metrics.calls_resolved
 
         try:
             self._process_calls_in_functions(
                 root_node, module_qn, language, queries, existing_hashes
             )
         except Exception as e:
+            had_error = True
             logger.error(
                 ls.CALL_FUNCTIONS_FAILED.format(
                     path=file_path, error=e, trace=traceback.format_exc()
@@ -93,6 +99,7 @@ class CallProcessor:
         try:
             self._process_calls_in_classes(root_node, module_qn, language, queries)
         except Exception as e:
+            had_error = True
             logger.error(
                 ls.CALL_CLASSES_FAILED.format(
                     path=file_path, error=e, trace=traceback.format_exc()
@@ -102,11 +109,17 @@ class CallProcessor:
         try:
             self._process_module_level_calls(root_node, module_qn, language, queries)
         except Exception as e:
+            had_error = True
             logger.error(
                 ls.CALL_MODULE_LEVEL_FAILED.format(
                     path=file_path, error=e, trace=traceback.format_exc()
                 )
             )
+
+        if had_error:
+            self.metrics.files_with_errors += 1
+        if self.metrics.calls_resolved == resolved_before:
+            self.metrics.files_with_zero_calls.append(str(file_path))
 
     def _process_calls_in_functions(
         self,
@@ -830,6 +843,8 @@ class CallProcessor:
                 if not call_name:
                     continue
 
+                self.metrics.total_call_nodes += 1
+
                 function_refs = self._extract_function_reference_arguments(
                     call_node, language
                 )
@@ -878,13 +893,17 @@ class CallProcessor:
                     )
                 if callee_info:
                     callee_type, callee_qn = callee_info
+                    resolution_strategy = cs.RESOLUTION_STRATEGY_FUNCTION_CALL
                 elif builtin_info := self._resolver.resolve_builtin_call(call_name):
                     callee_type, callee_qn = builtin_info
+                    resolution_strategy = cs.RESOLUTION_STRATEGY_BUILTIN_CALL
                 elif operator_info := self._resolver.resolve_cpp_operator_call(
                     call_name, module_qn
                 ):
                     callee_type, callee_qn = operator_info
+                    resolution_strategy = cs.RESOLUTION_STRATEGY_CPP_OPERATOR
                 else:
+                    self.metrics.calls_unresolved += 1
                     if caller_node.type == cs.TS_ARROW_FUNCTION:
                         has_parenthesized_body = any(
                             child.type == cs.TS_PARENTHESIZED_EXPRESSION
@@ -912,6 +931,10 @@ class CallProcessor:
                         )
                     )
                     continue
+                self.metrics.calls_resolved += 1
+                self.metrics.resolution_by_strategy[resolution_strategy] = (
+                    self.metrics.resolution_by_strategy.get(resolution_strategy, 0) + 1
+                )
                 logger.debug(
                     ls.CALL_FOUND.format(
                         caller=caller_qn,
@@ -927,6 +950,7 @@ class CallProcessor:
                     (callee_type, cs.KEY_QUALIFIED_NAME, callee_qn),
                 )
             except Exception as e:
+                self.metrics.calls_errored += 1
                 logger.error(
                     ls.CALL_INGEST_NODE_FAILED.format(
                         line=call_node.start_point[0] + 1,

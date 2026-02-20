@@ -283,6 +283,7 @@ class GraphUpdater:
         logger.info(ls.FOUND_FUNCTIONS.format(count=len(self.function_registry)))
         logger.info(ls.PASS_3_CALLS)
         self._process_function_calls()
+        self._log_call_processing_summary()
 
         self.factory.definition_processor.process_all_method_overrides()
 
@@ -352,6 +353,35 @@ class GraphUpdater:
                 self.factory.structure_processor.process_generic_file(
                     filepath, filepath.name
                 )
+
+    def _log_call_processing_summary(self) -> None:
+        m = self.factory.call_processor.metrics
+        logger.info(
+            ls.CALL_METRICS_SUMMARY.format(
+                files=m.files_attempted, nodes=m.total_call_nodes
+            )
+        )
+        logger.info(
+            ls.CALL_METRICS_RESOLUTION.format(
+                resolved=m.calls_resolved,
+                unresolved=m.calls_unresolved,
+                errored=m.calls_errored,
+            )
+        )
+        if m.resolution_by_strategy:
+            logger.info(
+                ls.CALL_METRICS_STRATEGIES.format(
+                    strategies=dict(m.resolution_by_strategy)
+                )
+            )
+        logger.info(
+            ls.CALL_METRICS_ZERO_CALLS.format(count=len(m.files_with_zero_calls))
+        )
+        logger.info(
+            ls.CALL_METRICS_ERROR_RATE.format(
+                files_with_errors=m.files_with_errors, files_attempted=m.files_attempted
+            )
+        )
 
     def _process_function_calls(self) -> None:
         ast_cache_items = list(self.ast_cache.items())

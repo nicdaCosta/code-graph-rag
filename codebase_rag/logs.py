@@ -288,6 +288,17 @@ IMAGE_NOT_FOUND = "Image path found, but does not exist: {path}"
 IMAGE_COPY_FAILED = "Failed to copy image to temporary directory: {error}"
 FILE_OUTSIDE_ROOT = "Security risk: Attempted to {action} file outside of project root."
 
+CALL_METRICS_SUMMARY = (
+    "Call processing complete: {files} files, {nodes} call nodes found"
+)
+CALL_METRICS_RESOLUTION = (
+    "  Resolved: {resolved} | Unresolved: {unresolved} | Errored: {errored}"
+)
+CALL_METRICS_STRATEGIES = "  Resolution strategies: {strategies}"
+CALL_METRICS_ZERO_CALLS = "  Files with zero resolved calls: {count}"
+CALL_METRICS_ERROR_RATE = (
+    "  Error rate: {files_with_errors}/{files_attempted} files had processing errors"
+)
 CALL_PROCESSING_FILE = "Processing calls in cached AST for: {path}"
 CALL_PROCESSING_FAILED = "Failed to process calls in {path}: {error}"
 CALL_FOUND_NODES = "Found {count} call nodes in {language} for {caller}"
