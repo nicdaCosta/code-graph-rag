@@ -223,6 +223,46 @@ class TsConfigResolver:
                     except ValueError:
                         continue
 
+        root_tsconfig = self.repo_path / cs.TSCONFIG_JSON
+        if tsconfig_path != root_tsconfig and root_tsconfig.exists():
+            logger.debug(ls.TSCONFIG_ROOT_REFS_FALLBACK.format(import_path=import_path))
+            root_ref_paths = self.resolve_references(root_tsconfig)
+            for pattern, targets in root_ref_paths.items():
+                if "*" in pattern:
+                    prefix = pattern.split("*")[0]
+                    if import_path.startswith(prefix):
+                        suffix = import_path[len(prefix) :]
+                        for target in targets:
+                            resolved = target.replace("*", suffix)
+                            full_path = (self.repo_path / resolved).resolve()
+                            if self._path_exists_with_extensions(full_path):
+                                try:
+                                    rel_path = full_path.relative_to(self.repo_path)
+                                    result = str(rel_path).replace("/", ".")
+                                    logger.debug(
+                                        ls.TSCONFIG_ROOT_REFS_RESOLVED.format(
+                                            import_path=import_path, result=result
+                                        )
+                                    )
+                                    return result
+                                except ValueError:
+                                    continue
+                elif import_path == pattern:
+                    target = targets[0]
+                    full_path = (self.repo_path / target).resolve()
+                    if self._path_exists_with_extensions(full_path):
+                        try:
+                            rel_path = full_path.relative_to(self.repo_path)
+                            result = str(rel_path).replace("/", ".")
+                            logger.debug(
+                                ls.TSCONFIG_ROOT_REFS_RESOLVED.format(
+                                    import_path=import_path, result=result
+                                )
+                            )
+                            return result
+                        except ValueError:
+                            continue
+
         if base_url and base_url != ".":
             base_path = (tsconfig_path.parent / base_url / import_path).resolve()
             if self._path_exists_with_extensions(base_path):
