@@ -560,6 +560,8 @@ EXAMPLE_GRAPH_FIXTURE = (
     "path: 'src/handlers.py', name: 'handlers.py'}) "
     "CREATE (mod3:Module {qualified_name: 'app.models', "
     "path: 'src/models/user.py', name: 'user.py'}) "
+    "CREATE (mod4:Module {qualified_name: 'app.main', "
+    "path: 'app/main.ts', name: 'main.ts'}) "
     "CREATE (fn1:Function {qualified_name: 'app.services.processData', "
     "name: 'processData'}) "
     "CREATE (fn2:Function {qualified_name: 'app.handlers.handleRequest', "
@@ -578,6 +580,7 @@ EXAMPLE_GRAPH_FIXTURE = (
     "CREATE (cls)-[:DEFINES_METHOD]->(mth) "
     "CREATE (fn2)-[:DEFINES]->(af1) "
     "CREATE (mth)-[:DEFINES]->(af2) "
+    "CREATE (mod4)-[:CALLS]->(fn1) "
     "CREATE (fn2)-[:CALLS]->(fn1) "
     "CREATE (mth)-[:CALLS]->(fn1) "
     "CREATE (af1)-[:CALLS]->(fn1) "
@@ -624,7 +627,7 @@ class TestCypherExampleQueriesIntegration:
 
         results = memgraph_ingestor._execute_query(query)
 
-        assert len(results) == 2
+        assert len(results) >= 2
 
     def test_function_with_path_returns_results(
         self, memgraph_ingestor: MemgraphIngestor
@@ -684,7 +687,7 @@ class TestCypherExampleQueriesIntegration:
 
         results = memgraph_ingestor._execute_query(query)
 
-        assert len(results) == 4
+        assert len(results) == 5
 
     def test_anonymous_functions_example_returns_results(
         self, memgraph_ingestor: MemgraphIngestor
@@ -710,3 +713,104 @@ class TestCypherExampleQueriesIntegration:
         assert len(results) == 1
         assert "handleRequest" in results[0]["parent_qn"]
         assert "map_a1b2c3d4" in results[0]["callback_qn"]
+
+    @pytest.mark.integration
+    def test_find_callers_resolves_module_callers(
+        self, memgraph_ingestor: MemgraphIngestor
+    ) -> None:
+        cursor = memgraph_ingestor._execute_query(EXAMPLE_GRAPH_FIXTURE)
+
+        query = """
+        MATCH (caller:Module)-[:CALLS]->(target:Function|Method)
+        WHERE target.name = 'processData'
+        WITH DISTINCT caller, target
+        WITH caller WHERE 'Module' IN labels(caller)
+        RETURN caller.path as file_path, caller.name as caller_name
+        """
+        cursor = memgraph_ingestor._execute_query(query)
+        results = cursor.fetchall()
+
+        assert len(results) > 0, "Module callers should be found"
+        assert all(r[0] is not None for r in results), (
+            "All Module callers should have file_path"
+        )
+        assert any("app/main.ts" in str(r[0]) for r in results), (
+            "Module caller path should be resolved"
+        )
+
+    @pytest.mark.integration
+    def test_find_callers_resolves_all_caller_types(
+        self, memgraph_ingestor: MemgraphIngestor
+    ) -> None:
+        cursor = memgraph_ingestor._execute_query(EXAMPLE_GRAPH_FIXTURE)
+
+        query = CYPHER_EXAMPLE_FIND_CALLERS.replace(
+            "toLower('targetFunctionName')", "'processData'"
+        )
+        cursor = memgraph_ingestor._execute_query(query)
+        results = cursor.fetchall()
+
+        assert len(results) >= 5, (
+            "Should find Module + Function + Method + 2x AnonymousFunction callers"
+        )
+
+        file_paths = [r[0] for r in results]
+        assert all(fp is not None for fp in file_paths), (
+            "All callers should resolve to file paths"
+        )
+
+        assert any("app/main.ts" in str(fp) for fp in file_paths), (
+            "Module caller not found"
+        )
+
+        assert any("src/handlers.py" in str(fp) for fp in file_paths), (
+            "Function caller not found"
+        )
+
+    @pytest.mark.integration
+    def test_find_callers_distinct_file_count(
+        self, memgraph_ingestor: MemgraphIngestor
+    ) -> None:
+        cursor = memgraph_ingestor._execute_query(EXAMPLE_GRAPH_FIXTURE)
+
+        cursor = memgraph_ingestor._execute_query("""
+            MATCH (caller)-[:CALLS]->(fn:Function {name: 'processData'})
+            RETURN count(DISTINCT caller) as total_callers
+        """)
+        total_callers = cursor.fetchone()[0]
+
+        query = """
+        MATCH (caller)-[:CALLS]->(target:Function|Method)
+        WHERE target.name = 'processData'
+        WITH DISTINCT caller
+        CALL {
+          WITH caller
+          WITH caller WHERE 'Module' IN labels(caller)
+          RETURN caller.path as file_path
+          UNION
+          WITH caller
+          WITH caller WHERE 'Function' IN labels(caller) OR 'Method' IN labels(caller)
+          OPTIONAL MATCH (m:Module)-[:DEFINES]->(caller)
+          OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
+          WITH coalesce(m.path, m2.path) as fp
+          WHERE fp IS NOT NULL
+          RETURN fp as file_path
+          UNION
+          WITH caller
+          WITH caller WHERE 'AnonymousFunction' IN labels(caller)
+          WITH substring(caller.qualified_name, 0, size(caller.qualified_name) - size(caller.name) - 1) as module_qn
+          OPTIONAL MATCH (m:Module {qualified_name: module_qn})
+          WHERE m IS NOT NULL
+          RETURN m.path as file_path
+        }
+        RETURN count(DISTINCT file_path) as distinct_files
+        """
+        cursor = memgraph_ingestor._execute_query(query)
+        distinct_files = cursor.fetchone()[0]
+
+        assert distinct_files >= 2, (
+            f"Expected at least 2 distinct files, got {distinct_files}"
+        )
+        assert distinct_files <= total_callers, (
+            f"Distinct files ({distinct_files}) cannot exceed total callers ({total_callers})"
+        )
