@@ -109,8 +109,8 @@ function resolveWithTypeScript(specifier, fromFile) {
             options.paths = { ...options.paths, ...injectedPaths };
         }
 
-        // Set baseUrl if not already defined
-        if (injectedBaseUrl && !options.baseUrl) {
+        // (H) Override baseUrl when injected paths present — paths are repo-root-relative
+        if (injectedBaseUrl && injectedPaths && Object.keys(injectedPaths).length > 0) {
             options.baseUrl = injectedBaseUrl;
         }
 
