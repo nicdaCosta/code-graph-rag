@@ -280,6 +280,7 @@ FILE_WRITER_SUCCESS = "[FileWriter] Successfully wrote {chars} characters to {pa
 UNEXPECTED = "An unexpected error occurred: {error}"
 EXPORT_ERROR = "Export error: {error}"
 INDEXING_FAILED = "Indexing failed"
+SCAN_LOG_FILE_CONFIGURED = "Scan log file: {path}"
 PATH_NOT_IN_QUESTION = (
     "Could not find original path in question for replacement: {path}"
 )

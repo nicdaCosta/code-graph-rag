@@ -78,6 +78,9 @@ HELP_INTERACTIVE_SETUP = (
     "Show interactive prompt to select which detected directories to keep. "
     "Without this flag, all directories matching ignore patterns are automatically excluded."
 )
+HELP_START_LOG_FILE = (
+    "Write full DEBUG log to this file (parent directory created if missing)."
+)
 
 CLI_COMMANDS: dict[CLICommandName, str] = {
     CLICommandName.START: CMD_START,
