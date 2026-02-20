@@ -312,6 +312,9 @@ CALL_FOUND = (
 )
 CALL_NESTED_FOUND = "Found nested call from {caller} to {call_name} (resolved as {callee_type}:{callee_qn})"
 CALL_DIRECT_IMPORT = "Direct import resolved: {call_name} -> {qn}"
+CALL_REEXPORT_CHAIN = (
+    "Barrel re-export resolved: {call_name} -> {barrel_qn} -> {source_qn}"
+)
 CALL_TYPE_INFERRED = "Type-inferred object method resolved: {call_name} -> {method_qn} (via {obj}:{var_type})"
 CALL_TYPE_INFERRED_INHERITED = (
     "Type-inferred inherited object method resolved: {call_name} -> {method_qn} "

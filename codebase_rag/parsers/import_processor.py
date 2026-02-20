@@ -577,8 +577,18 @@ class ImportProcessor:
                                 if alias_node
                                 else imported_name
                             )
-                            self.import_mapping[current_module][local_name] = (
+                            direct_qn = (
                                 f"{source_module}{cs.SEPARATOR_DOT}{imported_name}"
+                            )
+                            # (H) Flatten barrel re-export: if source_module already re-exports imported_name, use source QN
+                            barrel_imports = self.import_mapping.get(
+                                source_module, {}
+                            ) or self.import_mapping.get(
+                                f"{source_module}{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}", {}
+                            )
+                            resolved_qn = barrel_imports.get(imported_name, direct_qn)
+                            self.import_mapping[current_module][local_name] = (
+                                resolved_qn
                             )
                             logger.debug(
                                 ls.IMP_JS_NAMED.format(

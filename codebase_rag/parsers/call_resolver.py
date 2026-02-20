@@ -133,6 +133,27 @@ class CallResolver:
                 ls.CALL_DIRECT_IMPORT.format(call_name=call_name, qn=imported_qn)
             )
             return self.function_registry[imported_qn], imported_qn
+
+        # (H) imported_qn is {barrel_module_qn}.{name} — check barrel's re-export chain
+        parts = imported_qn.rsplit(cs.SEPARATOR_DOT, 1)
+        if len(parts) == 2:
+            barrel_module_qn, reexported_name = parts
+            # (H) Try both direct QN and .index suffix (JS barrel convention)
+            barrel_imports = self.import_processor.import_mapping.get(
+                barrel_module_qn, {}
+            ) or self.import_processor.import_mapping.get(
+                f"{barrel_module_qn}{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}", {}
+            )
+            if source_qn := barrel_imports.get(reexported_name):
+                if source_qn in self.function_registry:
+                    logger.debug(
+                        ls.CALL_REEXPORT_CHAIN.format(
+                            call_name=call_name,
+                            barrel_qn=imported_qn,
+                            source_qn=source_qn,
+                        )
+                    )
+                    return self.function_registry[source_qn], source_qn
         return None
 
     def _try_resolve_qualified_call(
