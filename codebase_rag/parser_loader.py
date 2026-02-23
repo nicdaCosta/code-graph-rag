@@ -274,7 +274,7 @@ def _process_language(
 ) -> bool:
     lang_lib = LANGUAGE_LIBRARIES.get(lang_name)
     if not lang_lib:
-        logger.debug(ls.LIB_NOT_AVAILABLE.format(lang=lang_name))
+        logger.warning(ls.LIB_NOT_AVAILABLE.format(lang=lang_name))
         return False
 
     try:

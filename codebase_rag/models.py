@@ -104,3 +104,15 @@ class CallProcessingMetrics:
     calls_errored: int = 0
     resolution_by_strategy: dict[str, int] = field(default_factory=dict)
     files_with_zero_calls: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ScanFunnelMetrics:
+    files_discovered: int = 0
+    files_filtered_exclude: int = 0
+    files_filtered_no_parser: int = 0
+    files_parsed_as_code: int = 0
+    files_parsed_as_dependency: int = 0
+    files_parse_failed: int = 0
+    extensions_skipped: dict[str, int] = field(default_factory=dict)
+    index_files_normalized: int = 0

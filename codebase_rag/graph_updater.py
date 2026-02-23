@@ -11,6 +11,7 @@ from . import cypher_queries as cq
 from . import logs as ls
 from .config import settings
 from .language_spec import LANGUAGE_FQN_SPECS, get_language_spec
+from .models import ScanFunnelMetrics
 from .parsers.factory import ProcessorFactory
 from .services import IngestorProtocol, QueryProtocol
 from .types_defs import (
@@ -25,7 +26,7 @@ from .types_defs import (
 )
 from .utils.dependencies import has_semantic_dependencies
 from .utils.fqn_resolver import find_function_source_by_fqn
-from .utils.path_utils import should_skip_path
+from .utils.path_utils import discover_repo_files, should_skip_path
 from .utils.source_extraction import extract_source_with_fallback
 
 
@@ -350,22 +351,34 @@ class GraphUpdater:
                 logger.debug(ls.CLEANED_SIMPLE_NAME.format(name=simple_name))
 
     def _process_files(self) -> None:
-        files_iter = (
-            iter(self.file_filter) if self.file_filter else self.repo_path.rglob("*")
-        )
-        for filepath in files_iter:
-            if filepath.is_file() and not should_skip_path(
+        scan_metrics = ScanFunnelMetrics()
+
+        if self.file_filter:
+            all_files: list[Path] = list(self.file_filter)
+        else:
+            all_files = discover_repo_files(self.repo_path)
+
+        scan_metrics.files_discovered = len(all_files)
+
+        for filepath in all_files:
+            if not filepath.is_file():
+                continue
+            if should_skip_path(
                 filepath,
                 self.repo_path,
                 exclude_paths=self.exclude_paths,
                 unignore_paths=self.unignore_paths,
             ):
-                lang_config = get_language_spec(filepath.suffix)
-                if (
-                    lang_config
-                    and isinstance(lang_config.language, cs.SupportedLanguage)
-                    and lang_config.language in self.parsers
-                ):
+                scan_metrics.files_filtered_exclude += 1
+                continue
+
+            lang_config = get_language_spec(filepath.suffix)
+            if (
+                lang_config
+                and isinstance(lang_config.language, cs.SupportedLanguage)
+                and lang_config.language in self.parsers
+            ):
+                try:
                     result = self.factory.definition_processor.process_file(
                         filepath,
                         lang_config.language,
@@ -375,12 +388,35 @@ class GraphUpdater:
                     if result:
                         root_node, language = result
                         self.ast_cache[filepath] = (root_node, language)
-                elif self._is_dependency_file(filepath.name, filepath):
-                    self.factory.definition_processor.process_dependencies(filepath)
-
-                self.factory.structure_processor.process_generic_file(
-                    filepath, filepath.name
+                    scan_metrics.files_parsed_as_code += 1
+                except Exception as e:
+                    scan_metrics.files_parse_failed += 1
+                    logger.warning(ls.SCAN_PARSE_FAILED.format(path=filepath, error=e))
+            elif self._is_dependency_file(filepath.name, filepath):
+                self.factory.definition_processor.process_dependencies(filepath)
+                scan_metrics.files_parsed_as_dependency += 1
+            else:
+                scan_metrics.files_filtered_no_parser += 1
+                ext = filepath.suffix
+                scan_metrics.extensions_skipped[ext] = (
+                    scan_metrics.extensions_skipped.get(ext, 0) + 1
                 )
+
+            self.factory.structure_processor.process_generic_file(
+                filepath, filepath.name
+            )
+
+        self.scan_metrics = scan_metrics
+        logger.info(
+            ls.SCAN_FUNNEL_SUMMARY.format(
+                discovered=scan_metrics.files_discovered,
+                code=scan_metrics.files_parsed_as_code,
+                dependency=scan_metrics.files_parsed_as_dependency,
+                exclude=scan_metrics.files_filtered_exclude,
+                no_parser=scan_metrics.files_filtered_no_parser,
+                failed=scan_metrics.files_parse_failed,
+            )
+        )
 
     def _log_call_processing_summary(self) -> None:
         m = self.factory.call_processor.metrics

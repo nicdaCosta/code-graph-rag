@@ -286,6 +286,14 @@ SCAN_REGISTRY_PRELOADED = "Function registry preloaded: {count} entries from gra
 SCAN_REGISTRY_PRELOAD_NO_QUERY = (
     "Ingestor does not support queries — registry preload skipped"
 )
+SCAN_DISCOVERY_GIT = "File discovery: using git ls-files"
+SCAN_DISCOVERY_RGLOB = "File discovery: using rglob (non-git repo)"
+SCAN_DISCOVERED = "Discovered {count} files from repository"
+SCAN_EXTENSIONS = "File extensions: {extensions}"
+SCAN_FILTERED_EXCLUDE = "Filtered {count} files by exclude patterns"
+SCAN_FILTERED_NO_PARSER = "Skipped {count} files (no parser): {extensions}"
+SCAN_PARSE_FAILED = "Parse failed for {path}: {error}"
+SCAN_FUNNEL_SUMMARY = "Scan funnel: discovered={discovered}, code={code}, dependency={dependency}, filtered_exclude={exclude}, filtered_no_parser={no_parser}, failed={failed}"
 PATH_NOT_IN_QUESTION = (
     "Could not find original path in question for replacement: {path}"
 )
