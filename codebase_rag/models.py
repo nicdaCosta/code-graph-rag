@@ -76,6 +76,7 @@ class LanguageSpec:
 class Dependency:
     name: str
     spec: str
+    category: str = field(default="", compare=False)
     properties: dict[str, str] = field(default_factory=dict)
 
 
@@ -102,6 +103,8 @@ class CallProcessingMetrics:
     calls_resolved: int = 0
     calls_unresolved: int = 0
     calls_errored: int = 0
+    calls_resolved_external: int = 0
+    external_functions_created: int = 0
     resolution_by_strategy: dict[str, int] = field(default_factory=dict)
     files_with_zero_calls: list[str] = field(default_factory=list)
 

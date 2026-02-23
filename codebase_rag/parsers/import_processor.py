@@ -258,6 +258,15 @@ class ImportProcessor:
                 cs.KEY_IS_EXTERNAL: True,
             },
         )
+        # (H) Link external Module to its ExternalPackage
+        if self.workspace_resolver:
+            pkg_name, _ = self.workspace_resolver.normalize_package_name(full_name)
+            if pkg_name in self.workspace_resolver.external_packages:
+                self.ingestor.ensure_relationship_batch(
+                    (cs.NodeLabel.EXTERNAL_PACKAGE, cs.KEY_NAME, pkg_name),
+                    cs.RelationshipType.CONTAINS_MODULE,
+                    (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_path),
+                )
 
     def _resolve_rust_import_path(self, import_path: str, module_qn: str) -> str:
         if self._is_local_rust_import(import_path):

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from tree_sitter import Language, Node
@@ -7,11 +9,12 @@ from ..utils import safe_decode_text
 
 if TYPE_CHECKING:
     from ...types_defs import LanguageQueries
+    from ..workspace.protocol import WorkspaceResolver
 
 
 def get_js_ts_language_obj(
     language: cs.SupportedLanguage,
-    queries: dict[cs.SupportedLanguage, "LanguageQueries"],
+    queries: dict[cs.SupportedLanguage, LanguageQueries],
 ) -> Language | None:
     if language not in cs.JS_TS_LANGUAGES:
         return None
@@ -127,3 +130,23 @@ def analyze_return_expression(expr_node: Node, method_qn: str) -> str | None:
 
         case _:
             return None
+
+
+def extract_package_name_from_qn(qualified_name: str) -> str:
+    parts = qualified_name.split(cs.SEPARATOR_DOT)
+    if qualified_name.startswith(cs.SCOPED_PACKAGE_PREFIX):
+        # (H) Scoped package: @scope.pkg -> @scope/pkg
+        if len(parts) >= 2:
+            return f"{parts[0]}/{parts[1]}"
+        return qualified_name
+    return parts[0]
+
+
+def is_external_import(
+    qualified_name: str,
+    workspace_resolver: WorkspaceResolver | None,
+) -> bool:
+    if not workspace_resolver:
+        return False
+    package_name = extract_package_name_from_qn(qualified_name)
+    return package_name in workspace_resolver.external_packages

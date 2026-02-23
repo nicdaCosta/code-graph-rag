@@ -154,6 +154,11 @@ class FunctionRegistryTrie:
             return list(self._simple_name_lookup[suffix])
         return [qn for qn in self._entries.keys() if qn.endswith(f".{suffix}")]
 
+    def register_external(
+        self, qualified_name: QualifiedName, func_type: NodeType
+    ) -> None:
+        self._entries[qualified_name] = func_type
+
     def find_with_prefix(self, prefix: str) -> list[tuple[QualifiedName, NodeType]]:
         node = self._navigate_to_prefix(prefix)
         return [] if node is None else self._collect_from_subtree(node)

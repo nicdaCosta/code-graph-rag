@@ -406,11 +406,13 @@ TSCONFIG_ROOT_REFS_RESOLVED = (
     "Root tsconfig references resolved {import_path} → {result}"
 )
 CALL_UNRESOLVED_DETAILS = (
-    "❌ UNRESOLVED CALL: {call_name} in {caller_qn}\n"
+    "UNRESOLVED CALL: {call_name} in {caller_qn}\n"
     "   Module: {module_qn}\n"
     "   Has import map: {has_import_map}\n"
     "   Import map size: {import_map_size}"
 )
+CALL_EXTERNAL_CREATED = "Created external function node: {qn} (package: {pkg})"
+CALL_EXTERNAL_RESOLVED = "Resolved external call: {caller} -> {external}"
 
 DEP_PARSE_ERROR_PYPROJECT = "Error parsing pyproject.toml {path}: {error}"
 DEP_PARSE_ERROR_REQUIREMENTS = "Error parsing requirements.txt {path}: {error}"

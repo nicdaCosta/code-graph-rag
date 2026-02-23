@@ -63,7 +63,9 @@ class PyProjectTomlParser(DependencyParser):
                     if dep_name:
                         dependencies.append(
                             Dependency(
-                                dep_name, dep_line, {cs.DEP_KEY_GROUP: group_name}
+                                dep_name,
+                                dep_line,
+                                properties={cs.DEP_KEY_GROUP: group_name},
                             )
                         )
         except Exception as e:
@@ -114,7 +116,7 @@ class PackageJsonParser(DependencyParser):
             cs.DEP_KEY_PEER_DEPS,
         ):
             dependencies.extend(
-                Dependency(dep_name, dep_spec)
+                Dependency(dep_name, dep_spec, category=key)
                 for dep_name, dep_spec in data.get(key, {}).items()
             )
 

@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from loguru import logger
 from tree_sitter import Node
 
 from .. import constants as cs
 from .. import logs as ls
+from ..services import IngestorProtocol
 from ..types_defs import FunctionRegistryTrieProtocol, NodeType
 from .import_processor import ImportProcessor
+from .js_ts.utils import extract_package_name_from_qn, is_external_import
 from .py import resolve_class_name
 from .type_inference import TypeInferenceEngine
+
+if TYPE_CHECKING:
+    from .workspace.protocol import WorkspaceResolver
 
 
 class CallResolver:
@@ -20,11 +26,15 @@ class CallResolver:
         import_processor: ImportProcessor,
         type_inference: TypeInferenceEngine,
         class_inheritance: dict[str, list[str]],
+        ingestor: IngestorProtocol | None = None,
+        workspace_resolver: WorkspaceResolver | None = None,
     ) -> None:
         self.function_registry = function_registry
         self.import_processor = import_processor
         self.type_inference = type_inference
         self.class_inheritance = class_inheritance
+        self.ingestor = ingestor
+        self.workspace_resolver = workspace_resolver
 
     def _resolve_class_qn_from_type(
         self, var_type: str, import_map: dict[str, str], module_qn: str
@@ -151,6 +161,32 @@ class CallResolver:
                         )
                     )
                     return self.function_registry[source_qn], source_qn
+
+        # (H) On-demand external function creation for package.json dependencies
+        if self.ingestor and is_external_import(imported_qn, self.workspace_resolver):
+            ext_parts = imported_qn.rsplit(cs.SEPARATOR_DOT, 1)
+            if len(ext_parts) == 2:
+                module_qn_ext, func_name = ext_parts
+                pkg_name = extract_package_name_from_qn(imported_qn)
+                self.ingestor.ensure_node_batch(
+                    cs.NodeLabel.FUNCTION,
+                    {
+                        cs.KEY_NAME: func_name,
+                        cs.KEY_QUALIFIED_NAME: imported_qn,
+                        cs.KEY_IS_EXTERNAL: True,
+                        cs.KEY_TYPE: NodeType.FUNCTION,
+                    },
+                )
+                self.ingestor.ensure_relationship_batch(
+                    (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn_ext),
+                    cs.RelationshipType.DEFINES,
+                    (cs.NodeLabel.FUNCTION, cs.KEY_QUALIFIED_NAME, imported_qn),
+                )
+                self.function_registry.register_external(imported_qn, NodeType.FUNCTION)
+                logger.debug(
+                    ls.CALL_EXTERNAL_CREATED.format(qn=imported_qn, pkg=pkg_name)
+                )
+                return NodeType.FUNCTION, imported_qn
         return None
 
     def _try_resolve_qualified_call(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import traceback
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loguru import logger
 from tree_sitter import Node, QueryCursor
@@ -24,6 +25,9 @@ from .import_processor import ImportProcessor
 from .type_inference import TypeInferenceEngine
 from .utils import get_function_captures, is_method_node
 
+if TYPE_CHECKING:
+    from .workspace.protocol import WorkspaceResolver
+
 
 class CallProcessor:
     def __init__(
@@ -35,6 +39,7 @@ class CallProcessor:
         import_processor: ImportProcessor,
         type_inference: TypeInferenceEngine,
         class_inheritance: dict[str, list[str]],
+        workspace_resolver: WorkspaceResolver | None = None,
     ) -> None:
         self.ingestor = ingestor
         self.repo_path = repo_path
@@ -45,6 +50,8 @@ class CallProcessor:
             import_processor=import_processor,
             type_inference=type_inference,
             class_inheritance=class_inheritance,
+            ingestor=ingestor,
+            workspace_resolver=workspace_resolver,
         )
         self.metrics = CallProcessingMetrics()
 
