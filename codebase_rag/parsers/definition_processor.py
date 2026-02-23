@@ -95,7 +95,10 @@ class DefinitionProcessor(
             module_qn = cs.SEPARATOR_DOT.join(
                 [self.project_name] + list(relative_path.with_suffix("").parts)
             )
-            if file_path.name in (cs.INIT_PY, cs.MOD_RS):
+            if (
+                file_path.name in (cs.INIT_PY, cs.MOD_RS)
+                or file_path.name in cs.JS_TS_INDEX_FILENAMES
+            ):
                 module_qn = cs.SEPARATOR_DOT.join(
                     [self.project_name] + list(relative_path.parent.parts)
                 )

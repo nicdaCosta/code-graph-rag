@@ -186,7 +186,7 @@ class TestTsconfigFallbackQnBuilding:
         )
 
         assert result.startswith("myproject" + cs.SEPARATOR_DOT)
-        assert "index" in result
+        assert not result.endswith(f"{cs.SEPARATOR_DOT}index")
 
     def test_typescript_resolver_returns_path_via_tsconfig(
         self, tsconfig_workspace: Path

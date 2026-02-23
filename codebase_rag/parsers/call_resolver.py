@@ -138,11 +138,8 @@ class CallResolver:
         parts = imported_qn.rsplit(cs.SEPARATOR_DOT, 1)
         if len(parts) == 2:
             barrel_module_qn, reexported_name = parts
-            # (H) Try both direct QN and .index suffix (JS barrel convention)
             barrel_imports = self.import_processor.import_mapping.get(
                 barrel_module_qn, {}
-            ) or self.import_processor.import_mapping.get(
-                f"{barrel_module_qn}{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}", {}
             )
             if source_qn := barrel_imports.get(reexported_name):
                 if source_qn in self.function_registry:

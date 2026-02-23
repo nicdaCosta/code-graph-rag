@@ -530,7 +530,10 @@ class ImportProcessor:
                     logger.debug(
                         f"tsconfig resolved: {import_path} -> {resolved} (from {current_module})"
                     )
-                    return f"{self.project_name}{cs.SEPARATOR_DOT}{resolved}"
+                    full_qn = f"{self.project_name}{cs.SEPARATOR_DOT}{resolved}"
+                    if full_qn.endswith(f"{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}"):
+                        full_qn = full_qn[: -len(f"{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}")]
+                    return full_qn
 
             if self.workspace_resolver:
                 if resolved := self._try_workspace_resolution(import_path):
@@ -581,11 +584,7 @@ class ImportProcessor:
                                 f"{source_module}{cs.SEPARATOR_DOT}{imported_name}"
                             )
                             # (H) Flatten barrel re-export: if source_module already re-exports imported_name, use source QN
-                            barrel_imports = self.import_mapping.get(
-                                source_module, {}
-                            ) or self.import_mapping.get(
-                                f"{source_module}{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}", {}
-                            )
+                            barrel_imports = self.import_mapping.get(source_module, {})
                             resolved_qn = barrel_imports.get(imported_name, direct_qn)
                             self.import_mapping[current_module][local_name] = (
                                 resolved_qn

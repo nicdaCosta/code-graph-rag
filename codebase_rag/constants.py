@@ -621,6 +621,9 @@ JS_TS_FUNCTION_NODES = (
 JS_TS_CLASS_NODES = ("class_declaration", "class")
 JS_TS_IMPORT_NODES = ("import_statement", "lexical_declaration", "export_statement")
 JS_TS_LANGUAGES = frozenset({SupportedLanguage.JS, SupportedLanguage.TS})
+JS_TS_INDEX_FILENAMES: frozenset[str] = frozenset(
+    {"index.ts", "index.tsx", "index.js", "index.jsx"}
+)
 
 CPP_IMPORT_NODES = ("preproc_include", "template_function", "declaration")
 
