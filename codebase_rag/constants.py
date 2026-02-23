@@ -1166,6 +1166,25 @@ TSCONFIG_REFERENCES_KEY = "references"
 TSCONFIG_PATH_KEY = "path"
 TSCONFIG_ENTRY_POINT_FIELDS = ("typings", "types", "main", "module")
 TSCONFIG_ENTRY_POINT_FALLBACKS = ("src/index", "index")
+
+TS_TYPE_PRIMITIVES = frozenset(
+    {
+        "string",
+        "number",
+        "boolean",
+        "void",
+        "null",
+        "undefined",
+        "any",
+        "never",
+        "unknown",
+        "object",
+        "symbol",
+        "bigint",
+    }
+)
+TS_TYPE_COMPLEX_MARKERS = frozenset({"|", "&", "<", "=>", "[]"})
+
 SEPARATOR_DOUBLE_COLON = "::"
 SEPARATOR_COLON = ":"
 SEPARATOR_PROTOTYPE = ".prototype."

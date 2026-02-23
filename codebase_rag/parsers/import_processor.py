@@ -700,19 +700,20 @@ class ImportProcessor:
                                         )
                                     )
 
-                                self.ingestor.ensure_relationship_batch(
-                                    (
-                                        cs.NodeLabel.MODULE,
-                                        cs.KEY_QUALIFIED_NAME,
-                                        current_module,
-                                    ),
-                                    cs.RelationshipType.IMPORTS,
-                                    (
-                                        cs.NodeLabel.MODULE,
-                                        cs.KEY_QUALIFIED_NAME,
-                                        resolved_module,
-                                    ),
-                                )
+                                if self.ingestor:
+                                    self.ingestor.ensure_relationship_batch(
+                                        (
+                                            cs.NodeLabel.MODULE,
+                                            cs.KEY_QUALIFIED_NAME,
+                                            current_module,
+                                        ),
+                                        cs.RelationshipType.IMPORTS,
+                                        (
+                                            cs.NodeLabel.MODULE,
+                                            cs.KEY_QUALIFIED_NAME,
+                                            resolved_module,
+                                        ),
+                                    )
                                 break
 
     def _parse_js_reexport(

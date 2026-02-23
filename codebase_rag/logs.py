@@ -538,6 +538,23 @@ JS_VAR_DECLARATOR_FAILED = (
     "Failed to process variable declarator at line {line}, skipping"
 )
 
+TYPE_RESOLVER_INIT = (
+    "TypeScript type resolver: {status} (tsconfig: {path}, files in program: {count})"
+)
+TYPE_RESOLVER_UNAVAILABLE = (
+    "TypeScript type resolver unavailable: {reason}. Falling back to Python inference"
+)
+TYPE_RESOLVER_QUERY = "Type resolver: {path} -> {func_count} functions with types"
+TYPE_RESOLVER_PARAM_RESOLVED = (
+    "TS type resolver: {param_name}: {type_name} -> {resolved_qn}"
+)
+TYPE_RESOLVER_PARAM_FILTERED = (
+    "TS type resolver: filtered complex/primitive type: {type_name}"
+)
+TYPE_RESOLVER_CLEANUP = "TypeScript type resolver subprocess cleaned up"
+TYPE_RESOLVER_RESTART = "TypeScript type resolver subprocess restarting"
+TYPE_RESOLVER_ERROR = "TypeScript type resolver error: {error}"
+
 LUA_VAR_TYPE_MAP_BUILT = "Built Lua variable type map with {count} variables"
 LUA_VAR_INFERRED = "Inferred Lua variable: {var_name} -> {var_type}"
 LUA_TYPE_INFERENCE_RETURN = (

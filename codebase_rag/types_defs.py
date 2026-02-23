@@ -193,6 +193,29 @@ class ModuleResolverProtocol(Protocol):
         """
         ...
 
+    def cleanup(self) -> None:
+        """Cleanup resources held by the resolver.
+
+        Called when the resolver is no longer needed. For example:
+        - Terminate long-running subprocesses (e.g., Node.js)
+        - Close file handles or database connections
+        - Clear large caches if memory is constrained
+
+        Note:
+            Should be idempotent and safe to call multiple times.
+        """
+        ...
+
+
+class TypeResolverProtocol(Protocol):
+    def resolve_function_types(
+        self, file_path: Path
+    ) -> dict[str, dict[str, dict[str, str]]]: ...
+    def initialize(self) -> None: ...
+    def cleanup(self) -> None: ...
+    @property
+    def is_available(self) -> bool: ...
+
 
 class ModelConfigKwargs(TypedDict, total=False):
     api_key: str | None

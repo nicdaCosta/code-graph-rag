@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
@@ -9,6 +13,9 @@ from ..import_processor import ImportProcessor
 from ..utils import safe_decode_text
 from . import utils as ut
 
+if TYPE_CHECKING:
+    from ...types_defs import TypeResolverProtocol
+
 
 class JsTypeInferenceEngine:
     def __init__(
@@ -17,16 +24,75 @@ class JsTypeInferenceEngine:
         function_registry: FunctionRegistryTrieProtocol,
         project_name: str,
         find_method_ast_node_func: Callable[[str], ASTNode | None],
+        type_resolver: TypeResolverProtocol | None = None,
+        module_qn_to_file_path: dict[str, Path] | None = None,
     ):
         self.import_processor = import_processor
         self.function_registry = function_registry
         self.project_name = project_name
         self._find_method_ast_node = find_method_ast_node_func
+        self._type_resolver = type_resolver
+        self._module_qn_to_file_path = module_qn_to_file_path or {}
+
+    def _is_filterable_type(self, type_name: str) -> bool:
+        if type_name.lower() in cs.TS_TYPE_PRIMITIVES:
+            return True
+        return any(marker in type_name for marker in cs.TS_TYPE_COMPLEX_MARKERS)
+
+    def _merge_ts_parameter_types(
+        self, local_var_types: dict[str, str], module_qn: str, caller_name: str
+    ) -> None:
+        if not self._type_resolver or not self._type_resolver.is_available:
+            return
+
+        file_path = self._module_qn_to_file_path.get(module_qn)
+        if not file_path:
+            return
+
+        function_types = self._type_resolver.resolve_function_types(file_path)
+        if not function_types:
+            return
+
+        func_info = function_types.get(caller_name)
+        if not func_info:
+            return
+
+        parameters = func_info.get("parameters", {})
+        for param_name, type_name in parameters.items():
+            if param_name in local_var_types:
+                continue
+
+            if self._is_filterable_type(type_name):
+                logger.debug(
+                    ls.TYPE_RESOLVER_PARAM_FILTERED.format(type_name=type_name)
+                )
+                continue
+
+            resolved_qn = self._resolve_js_class_name(type_name, module_qn)
+            if resolved_qn:
+                local_var_types[param_name] = resolved_qn
+                logger.debug(
+                    ls.TYPE_RESOLVER_PARAM_RESOLVED.format(
+                        param_name=param_name,
+                        type_name=type_name,
+                        resolved_qn=resolved_qn,
+                    )
+                )
+
+    def _extract_caller_name(self, caller_node: ASTNode) -> str | None:
+        name_node = caller_node.child_by_field_name(cs.FIELD_NAME)
+        if name_node:
+            return safe_decode_text(name_node)
+        return None
 
     def build_local_variable_type_map(
         self, caller_node: ASTNode, module_qn: str
     ) -> dict[str, str]:
         local_var_types: dict[str, str] = {}
+
+        caller_name = self._extract_caller_name(caller_node)
+        if caller_name:
+            self._merge_ts_parameter_types(local_var_types, module_qn, caller_name)
 
         stack: list[ASTNode] = [caller_node]
 

@@ -7,7 +7,9 @@ from ..types_defs import (
     ASTCacheProtocol,
     FunctionRegistryTrieProtocol,
     LanguageQueries,
+    ModuleResolverProtocol,
     SimpleNameLookup,
+    TypeResolverProtocol,
 )
 from .call_processor import CallProcessor
 from .definition_processor import DefinitionProcessor
@@ -52,6 +54,9 @@ class ProcessorFactory:
         self._definition_processor: DefinitionProcessor | None = None
         self._type_inference: TypeInferenceEngine | None = None
         self._call_processor: CallProcessor | None = None
+        self._module_resolver: ModuleResolverProtocol | None = None
+        self._type_resolver: TypeResolverProtocol | None = None
+        self._type_resolver_initialized: bool = False
 
     @property
     def import_processor(self) -> ImportProcessor:
@@ -67,6 +72,7 @@ class ProcessorFactory:
                 workspace_resolver=self.workspace_resolver,
                 tsconfig_resolver=tsconfig_resolver,
             )
+            self._module_resolver = module_resolver
 
             self._import_processor = ImportProcessor(
                 repo_path=self.repo_path,
@@ -107,6 +113,21 @@ class ProcessorFactory:
         return self._definition_processor
 
     @property
+    def type_resolver(self) -> TypeResolverProtocol | None:
+        if not self._type_resolver_initialized:
+            self._type_resolver_initialized = True
+            try:
+                from .resolvers.typescript_types import TypeScriptTypeResolver
+
+                resolver = TypeScriptTypeResolver(self.repo_path, self.project_name)
+                resolver.initialize()
+                if resolver.is_available:
+                    self._type_resolver = resolver
+            except Exception:
+                pass
+        return self._type_resolver
+
+    @property
     def type_inference(self) -> TypeInferenceEngine:
         if self._type_inference is None:
             self._type_inference = TypeInferenceEngine(
@@ -119,6 +140,7 @@ class ProcessorFactory:
                 module_qn_to_file_path=self.module_qn_to_file_path,
                 class_inheritance=self.definition_processor.class_inheritance,
                 simple_name_lookup=self.simple_name_lookup,
+                type_resolver=self.type_resolver,
             )
         return self._type_inference
 

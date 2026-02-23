@@ -32,3 +32,6 @@ class BaseModuleResolver:
 
     def initialize(self) -> None:
         pass
+
+    def cleanup(self) -> None:
+        pass

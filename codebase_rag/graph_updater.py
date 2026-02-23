@@ -296,32 +296,43 @@ class GraphUpdater:
         logger.info(ls.SCAN_REGISTRY_PRELOADED.format(count=len(results)))
 
     def run(self) -> None:
-        self.ingestor.ensure_node_batch(
-            cs.NODE_PROJECT, {cs.KEY_NAME: self.project_name}
-        )
-        logger.info(ls.ENSURING_PROJECT.format(name=self.project_name))
+        try:
+            self.ingestor.ensure_node_batch(
+                cs.NODE_PROJECT, {cs.KEY_NAME: self.project_name}
+            )
+            logger.info(ls.ENSURING_PROJECT.format(name=self.project_name))
 
-        if self.file_filter:
-            logger.info(ls.SCAN_FILE_FILTER_ACTIVE.format(count=len(self.file_filter)))
-            self._load_function_registry_from_graph()
-        else:
-            logger.info(ls.PASS_1_STRUCTURE)
-            self.factory.structure_processor.identify_structure()
+            if self.file_filter:
+                logger.info(
+                    ls.SCAN_FILE_FILTER_ACTIVE.format(count=len(self.file_filter))
+                )
+                self._load_function_registry_from_graph()
+            else:
+                logger.info(ls.PASS_1_STRUCTURE)
+                self.factory.structure_processor.identify_structure()
 
-        logger.info(ls.PASS_2_FILES)
-        self._process_files()
+            logger.info(ls.PASS_2_FILES)
+            self._process_files()
 
-        logger.info(ls.FOUND_FUNCTIONS.format(count=len(self.function_registry)))
-        logger.info(ls.PASS_3_CALLS)
-        self._process_function_calls()
-        self._log_call_processing_summary()
+            logger.info(ls.FOUND_FUNCTIONS.format(count=len(self.function_registry)))
+            logger.info(ls.PASS_3_CALLS)
+            self._process_function_calls()
+            self._log_call_processing_summary()
 
-        self.factory.definition_processor.process_all_method_overrides()
+            self.factory.definition_processor.process_all_method_overrides()
 
-        logger.info(ls.ANALYSIS_COMPLETE)
-        self.ingestor.flush_all()
+            logger.info(ls.ANALYSIS_COMPLETE)
+            self.ingestor.flush_all()
 
-        self._generate_semantic_embeddings()
+            self._generate_semantic_embeddings()
+        finally:
+            self._cleanup_subprocesses()
+
+    def _cleanup_subprocesses(self) -> None:
+        if self.factory._type_resolver:
+            self.factory._type_resolver.cleanup()
+        if hasattr(self.factory._module_resolver, "cleanup"):
+            self.factory._module_resolver.cleanup()
 
     def remove_file_from_state(self, file_path: Path) -> None:
         logger.debug(ls.REMOVING_STATE.format(path=file_path))

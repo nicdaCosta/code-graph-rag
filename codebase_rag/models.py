@@ -110,6 +110,15 @@ class CallProcessingMetrics:
 
 
 @dataclass
+class TypeResolutionMetrics:
+    files_queried: int = 0
+    functions_with_types: int = 0
+    parameters_resolved: int = 0
+    types_filtered_complex: int = 0
+    files_not_in_program: int = 0
+
+
+@dataclass
 class ScanFunnelMetrics:
     files_discovered: int = 0
     files_filtered_exclude: int = 0
