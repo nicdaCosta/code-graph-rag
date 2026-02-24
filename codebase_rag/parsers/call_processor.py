@@ -401,16 +401,6 @@ class CallProcessor:
         module_qn: str,
         lang_config: LanguageSpec,
     ) -> str | None:
-        """Walk up AST to find the nearest named function/method ancestor's QN.
-
-        Args:
-            node: Starting node (usually an unnamed arrow function)
-            module_qn: Module qualified name for building QNs
-            lang_config: Language configuration
-
-        Returns:
-            QN of the nearest named ancestor, or module_qn if no ancestor found
-        """
         current = node.parent
         while current and current.type not in lang_config.module_node_types:
             if current.type in lang_config.function_node_types:
@@ -429,7 +419,7 @@ class CallProcessor:
                         if candidate_qn in self._resolver.function_registry:
                             return candidate_qn
             current = current.parent
-        return module_qn
+        return None
 
     def _detect_arrow_context(
         self,
