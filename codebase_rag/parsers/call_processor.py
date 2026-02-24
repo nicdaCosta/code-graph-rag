@@ -771,6 +771,76 @@ class CallProcessor:
             current = current.parent
         return None
 
+    def _extract_parameter_names(
+        self, caller_node: Node, language: cs.SupportedLanguage
+    ) -> frozenset[str]:
+        names: set[str] = set()
+        match language:
+            case cs.SupportedLanguage.JS | cs.SupportedLanguage.TS:
+                params_node = caller_node.child_by_field_name(cs.FIELD_PARAMETERS)
+                if params_node is None:
+                    for child in caller_node.children:
+                        if child.type == cs.TS_FORMAL_PARAMETERS:
+                            params_node = child
+                            break
+                if params_node is None:
+                    return frozenset()
+                for child in params_node.children:
+                    if not child.is_named:
+                        continue
+                    match child.type:
+                        case cs.TS_IDENTIFIER:
+                            if child.text:
+                                names.add(child.text.decode(cs.ENCODING_UTF8))
+                        case cs.TS_REQUIRED_PARAMETER | cs.TS_OPTIONAL_PARAMETER:
+                            pattern_node = child.child_by_field_name(cs.FIELD_PATTERN)
+                            if (
+                                pattern_node
+                                and pattern_node.type == cs.TS_IDENTIFIER
+                                and pattern_node.text
+                            ):
+                                names.add(pattern_node.text.decode(cs.ENCODING_UTF8))
+                            else:
+                                for subchild in child.children:
+                                    if (
+                                        subchild.type == cs.TS_IDENTIFIER
+                                        and subchild.text
+                                    ):
+                                        names.add(
+                                            subchild.text.decode(cs.ENCODING_UTF8)
+                                        )
+                                        break
+            case cs.SupportedLanguage.PYTHON:
+                params_node = caller_node.child_by_field_name(cs.FIELD_PARAMETERS)
+                if params_node is None:
+                    return frozenset()
+                for child in params_node.children:
+                    if not child.is_named:
+                        continue
+                    match child.type:
+                        case cs.TS_IDENTIFIER:
+                            if child.text:
+                                names.add(child.text.decode(cs.ENCODING_UTF8))
+                        case (
+                            cs.TS_PY_TYPED_PARAMETER
+                            | cs.TS_PY_TYPED_DEFAULT_PARAMETER
+                            | cs.TS_PY_DEFAULT_PARAMETER
+                        ):
+                            name_node = child.child_by_field_name(cs.FIELD_NAME)
+                            if name_node and name_node.text:
+                                names.add(name_node.text.decode(cs.ENCODING_UTF8))
+                            else:
+                                for subchild in child.children:
+                                    if (
+                                        subchild.type == cs.TS_IDENTIFIER
+                                        and subchild.text
+                                    ):
+                                        names.add(
+                                            subchild.text.decode(cs.ENCODING_UTF8)
+                                        )
+                                        break
+        return frozenset(names)
+
     def _ingest_function_calls(
         self,
         caller_node: Node,
@@ -831,6 +901,9 @@ class CallProcessor:
                     f"Processing {len(call_nodes)} calls in implicit return arrow '{caller_qn}'"
                 )
 
+        parameter_names = self._extract_parameter_names(caller_node, language)
+        import_map = self._resolver.import_processor.import_mapping.get(module_qn, {})
+
         for call_node in call_nodes:
             if not isinstance(call_node, Node):
                 continue
@@ -848,6 +921,10 @@ class CallProcessor:
                         )
 
                 if not call_name:
+                    continue
+
+                if call_name in parameter_names and call_name not in import_map:
+                    self.metrics.calls_skipped_parameter += 1
                     continue
 
                 self.metrics.total_call_nodes += 1

@@ -312,6 +312,7 @@ CALL_METRICS_ZERO_CALLS = "  Files with zero resolved calls: {count}"
 CALL_METRICS_ERROR_RATE = (
     "  Error rate: {files_with_errors}/{files_attempted} files had processing errors"
 )
+CALL_SKIPPED_PARAMETER = "  Calls skipped (parameter invocations): {count}"
 CALL_PROCESSING_FILE = "Processing calls in cached AST for: {path}"
 CALL_PROCESSING_FAILED = "Failed to process calls in {path}: {error}"
 CALL_FOUND_NODES = "Found {count} call nodes in {language} for {caller}"

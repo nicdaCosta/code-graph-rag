@@ -448,6 +448,7 @@ class GraphUpdater:
                 errored=m.calls_errored,
             )
         )
+        logger.info(ls.CALL_SKIPPED_PARAMETER.format(count=m.calls_skipped_parameter))
         if m.resolution_by_strategy:
             logger.info(
                 ls.CALL_METRICS_STRATEGIES.format(
