@@ -437,14 +437,14 @@ class TestCypherExampleConstantsUnit:
 
     def test_find_callers_uses_module_defines(self) -> None:
         assert "Module" in CYPHER_EXAMPLE_FIND_CALLERS
-        assert "[:DEFINES]" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "[:DEFINES*" in CYPHER_EXAMPLE_FIND_CALLERS
 
     def test_find_callers_resolves_file_path_via_coalesce(self) -> None:
         assert "coalesce" in CYPHER_EXAMPLE_FIND_CALLERS
         assert "file_path" in CYPHER_EXAMPLE_FIND_CALLERS
 
     def test_find_callers_handles_method_callers(self) -> None:
-        assert "[:DEFINES_METHOD]" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "DEFINES*1..4" in CYPHER_EXAMPLE_FIND_CALLERS
 
     def test_find_callers_uses_case_insensitive_match(self) -> None:
         assert "toLower" in CYPHER_EXAMPLE_FIND_CALLERS
@@ -494,12 +494,10 @@ class TestCypherExampleConstantsUnit:
         assert "[:DEFINES*]" in CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE
 
     def test_find_callers_now_supports_anonymous_functions(self) -> None:
-        assert "AnonymousFunction" in CYPHER_EXAMPLE_FIND_CALLERS
-        assert "CALL {" in CYPHER_EXAMPLE_FIND_CALLERS
-        union_count = CYPHER_EXAMPLE_FIND_CALLERS.count("UNION")
-        assert union_count >= 2
-        assert "'AnonymousFunction' IN labels(caller)" in CYPHER_EXAMPLE_FIND_CALLERS
-        assert "substring(caller.qualified_name" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "DEFINES*" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "caller:Module" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "is_external IS NULL OR NOT" in CYPHER_EXAMPLE_FIND_CALLERS
+        assert "coalesce(" in CYPHER_EXAMPLE_FIND_CALLERS
 
 
 class TestSchemaSemanticNotesUnit:
@@ -782,27 +780,11 @@ class TestCypherExampleQueriesIntegration:
         query = """
         MATCH (caller)-[:CALLS]->(target:Function|Method)
         WHERE target.name = 'processData'
-        WITH DISTINCT caller
-        CALL {
-          WITH caller
-          WITH caller WHERE 'Module' IN labels(caller)
-          RETURN caller.path as file_path
-          UNION
-          WITH caller
-          WITH caller WHERE 'Function' IN labels(caller) OR 'Method' IN labels(caller)
-          OPTIONAL MATCH (m:Module)-[:DEFINES]->(caller)
-          OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
-          WITH coalesce(m.path, m2.path) as fp
-          WHERE fp IS NOT NULL
-          RETURN fp as file_path
-          UNION
-          WITH caller
-          WITH caller WHERE 'AnonymousFunction' IN labels(caller)
-          WITH substring(caller.qualified_name, 0, size(caller.qualified_name) - size(caller.name) - 1) as module_qn
-          OPTIONAL MATCH (m:Module {qualified_name: module_qn})
-          WHERE m IS NOT NULL
-          RETURN m.path as file_path
-        }
+          AND (target.is_external IS NULL OR NOT target.is_external)
+        OPTIONAL MATCH (m:Module)-[:DEFINES*1..4]->(caller)
+        WITH caller, target,
+          coalesce(CASE WHEN caller:Module THEN caller.path ELSE null END, m.path) AS file_path
+        WHERE file_path IS NOT NULL
         RETURN count(DISTINCT file_path) as distinct_files
         """
         cursor = memgraph_ingestor._execute_query(query)

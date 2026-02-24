@@ -53,27 +53,11 @@ CYPHER_EXAMPLE_LIMIT_ONE = """MATCH (f:File) RETURN f.path as path, f.name as na
 
 CYPHER_EXAMPLE_FIND_CALLERS = f"""MATCH (caller)-[:CALLS]->(target:Function|Method)
 WHERE toLower(target.name) = toLower('targetFunctionName')
-WITH DISTINCT caller, target
-CALL {{
-  WITH caller, target
-  WITH caller, target WHERE 'Module' IN labels(caller)
-  RETURN caller, target, caller.path AS file_path
-  UNION
-  WITH caller, target
-  WITH caller, target WHERE 'Function' IN labels(caller) OR 'Method' IN labels(caller)
-  OPTIONAL MATCH (m:Module)-[:DEFINES]->(caller)
-  OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
-  WITH caller, target, coalesce(m.path, m2.path) AS fp
-  WHERE fp IS NOT NULL
-  RETURN caller, target, fp AS file_path
-  UNION
-  WITH caller, target
-  WITH caller, target WHERE 'AnonymousFunction' IN labels(caller)
-  WITH caller, target, substring(caller.qualified_name, 0, size(caller.qualified_name) - size(caller.name) - 1) AS module_qn
-  OPTIONAL MATCH (m:Module {{qualified_name: module_qn}})
-  WHERE m IS NOT NULL
-  RETURN caller, target, m.path AS file_path
-}}
+  AND (target.is_external IS NULL OR NOT target.is_external)
+OPTIONAL MATCH (m:Module)-[:DEFINES*1..4]->(caller)
+WITH caller, target,
+  coalesce(CASE WHEN caller:Module THEN caller.path ELSE null END, m.path) AS file_path
+WHERE file_path IS NOT NULL
 RETURN DISTINCT file_path, caller.name AS caller_name, target.name AS called_function
 LIMIT {CYPHER_DEFAULT_LIMIT}"""
 

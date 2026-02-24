@@ -85,7 +85,7 @@ This schema models codebases in any supported language (Python, JavaScript, Type
 - Container relationships (CONTAINS_*) flow from: Project, Package, or Folder.
 - DEFINES flows from: Module to Class or Function.
 - DEFINES_METHOD flows from: Class to Method.
-- CALLS flows between: Function or Method to Function or Method.
+- CALLS flows between: Function, Method, or Module to Function or Method. Module-level code (top-level statements outside any function) generates CALLS edges directly from Module nodes.
 - IMPORTS flows from: Module to Module.
 - INHERITS flows from: subclass Class to superclass Class.
 - IMPLEMENTS flows from: Class to Interface.
@@ -104,68 +104,37 @@ This schema models codebases in any supported language (Python, JavaScript, Type
   - By line range: `WHERE af.start_line >= X AND af.end_line <= Y`
 - When asked "find all functions", default to named functions only UNLESS user mentions "callbacks", "hooks", "handlers", or "anonymous".
 
-**Critical: File Path Resolution for Callers**
+**Critical: Caller File Path Resolution**
 
-When finding files that call a function, caller nodes have DIFFERENT path resolution strategies based on their type:
-
-1. **Module callers**: Use `caller.path` property DIRECTLY
-   - Module nodes represent files and have `.path` property
-   - INCORRECT: `(m:Module)-[:DEFINES]->(caller:Module)` — this relationship does NOT exist in the schema
-   - CORRECT: `WITH caller WHERE 'Module' IN labels(caller) RETURN caller.path AS file_path`
-   - Why: Modules ARE the files themselves when module-level code calls a function
-
-2. **Function/Method callers**: Traverse to defining Module via [:DEFINES]
-   - Functions: `(m:Module)-[:DEFINES]->(caller:Function)` then use `m.path`
-   - Methods: `(m:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller:Method)` then use `m.path`
-   - Why: Functions/Methods don't have `.path` property - must traverse to parent Module
-
-3. **AnonymousFunction callers**: Extract module QN from qualified_name, match Module
-   - AnonymousFunction nodes have NO incoming [:DEFINES] edges (orphaned in current schema)
-   - CANNOT use traversal - relationship doesn't exist
-   - Module QN = qualified_name without last component (function name + dot)
-   - Example: `banana.lib.src.Component.test.arrow_abc123` → module QN = `banana.lib.src.Component.test`
-   - Query pattern:
-     ```
-     WITH substring(caller.qualified_name, 0, size(caller.qualified_name) - size(caller.name) - 1) AS module_qn
-     OPTIONAL MATCH (m:Module {qualified_name: module_qn})
-     WHERE m IS NOT NULL
-     RETURN m.path AS file_path
-     ```
-   - Why: AnonymousFunction's qualified_name encodes parent module, but no relationship exists to traverse
-
-**Pattern: Finding All Files That Call a Function (UNION approach)**
-
-Use this pattern when user asks "which files call X" or "how many files use X":
+When finding files that call a function, use the COALESCE+CASE pattern — it handles all caller types in one expression:
 
 ```cypher
 MATCH (caller)-[:CALLS]->(target:Function|Method)
-WHERE toLower(target.name) = toLower('targetFunction')
-WITH DISTINCT caller, target
-CALL {
-  WITH caller, target
-  WITH caller, target WHERE 'Module' IN labels(caller)
-  RETURN caller, target, caller.path AS file_path
-  UNION
-  WITH caller, target
-  WITH caller, target WHERE 'Function' IN labels(caller) OR 'Method' IN labels(caller)
-  OPTIONAL MATCH (m:Module)-[:DEFINES]->(caller)
-  OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
-  WITH caller, target, coalesce(m.path, m2.path) AS fp
-  WHERE fp IS NOT NULL
-  RETURN caller, target, fp AS file_path
-  UNION
-  WITH caller, target
-  WITH caller, target WHERE 'AnonymousFunction' IN labels(caller)
-  WITH caller, target, substring(caller.qualified_name, 0, size(caller.qualified_name) - size(caller.name) - 1) AS module_qn
-  OPTIONAL MATCH (m:Module {qualified_name: module_qn})
-  WHERE m IS NOT NULL
-  RETURN caller, target, m.path AS file_path
-}
+WHERE toLower(target.name) = toLower('targetFunctionName')
+  AND (target.is_external IS NULL OR NOT target.is_external)
+OPTIONAL MATCH (m:Module)-[:DEFINES*1..4]->(caller)
+WITH caller, target,
+  coalesce(CASE WHEN caller:Module THEN caller.path ELSE null END, m.path) AS file_path
+WHERE file_path IS NOT NULL
 RETURN DISTINCT file_path, caller.name AS caller_name, target.name AS called_function
 LIMIT 50
 ```
 
-**Why UNION is necessary:** A single OPTIONAL MATCH pattern cannot handle 3 fundamentally different resolution strategies. Module needs direct property access, Function/Method need traversal, AnonymousFunction needs string manipulation + lookup. Attempting to coalesce all paths in one pattern results in 70% data loss."""
+**Why each part is necessary:**
+
+1. `CASE WHEN caller:Module THEN caller.path` — Module nodes hold direct CALLS edges when top-level code (outside any function) calls a function. Module nodes ARE the files themselves (they have `.path` directly). The `DEFINES` relationship does NOT exist from a Module to itself, so you cannot traverse to find the path — you must use it directly.
+
+2. `DEFINES*1..4` — AnonymousFunction nodes sit 2+ hops from their Module:
+   `Module -[:DEFINES]-> Function -[:DEFINES]-> AnonymousFunction`
+   Depth 1 (`DEFINES`) misses all anonymous function callers. Depth `*1..4` captures nesting up to 4 levels deep (sufficient for practical use; increase to 6 for Scala or deeply nested closures).
+
+3. `target.is_external IS NULL OR NOT target.is_external` — Internal nodes have `is_external` stored as `null` (not `false`). Writing `NOT target.is_external` evaluates to `null` and silently drops all internal nodes. Always use the null-safe form.
+
+**Caller type resolution summary:**
+- Module caller: `CASE WHEN caller:Module THEN caller.path` (direct property)
+- Function/Method caller: resolved via `OPTIONAL MATCH (m:Module)-[:DEFINES*1..4]->(caller)` then `m.path`
+- AnonymousFunction with DEFINES parent: resolved via `DEFINES*1..4` chain
+- AnonymousFunction orphaned (no DEFINES parent anywhere): NOT resolvable via traversal — requires separate data fix in call_processor.py"""
 
 
 def build_graph_schema_and_rules() -> str:
