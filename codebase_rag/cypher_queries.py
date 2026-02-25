@@ -49,6 +49,36 @@ WHERE f.path STARTS WITH 'services'
 RETURN f.path AS path, f.name AS name, labels(f) AS type
 LIMIT {CYPHER_DEFAULT_LIMIT}"""
 
+CYPHER_EXAMPLE_FUNCTION_CALLERS = f"""MATCH (caller)-[:CALLS]->(fn:Function)
+WHERE toLower(fn.name) = 'getfeaturedecision'
+OPTIONAL MATCH (m:Module)-[:DEFINES]->(caller)
+OPTIONAL MATCH (m2:Module)-[:DEFINES]->(:Class)-[:DEFINES_METHOD]->(caller)
+WITH DISTINCT coalesce(m.path, m2.path) AS file_path
+WHERE file_path IS NOT NULL
+RETURN file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS = f"""-- Find all anonymous functions in a module
+MATCH (m:Module {{qualified_name: 'banana.libs.utils.helpers'}})-[:DEFINES]->(af:AnonymousFunction)
+RETURN af.qualified_name, af.name, af.start_line
+
+-- Find all useEffect callbacks that call a function
+MATCH (af:AnonymousFunction)-[:CALLS]->(fn:Function {{name: 'fetchData'}})
+WHERE af.name STARTS WITH 'hook_useEffect_'
+RETURN af.qualified_name, af.start_line
+
+-- Find all JSX onClick handlers
+MATCH (af:AnonymousFunction)
+WHERE af.name STARTS WITH 'jsx_onClick_'
+RETURN af.qualified_name
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_ARRAY_METHOD_CALLBACKS = f"""-- Find all map callbacks in a component
+MATCH (f:Function {{name: 'ComponentA'}})-[:DEFINES]->(af:AnonymousFunction)
+WHERE af.name STARTS WITH 'map_'
+RETURN af.qualified_name, af.start_line
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
 CYPHER_EXAMPLE_LIMIT_ONE = """MATCH (f:File) RETURN f.path as path, f.name as name, labels(f) as type LIMIT 1"""
 
 CYPHER_EXAMPLE_FIND_CALLERS = f"""MATCH (caller)-[:CALLS]->(target:Function|Method)
@@ -126,6 +156,14 @@ MATCH (n) WHERE n.qualified_name = $qn
 OPTIONAL MATCH (m:Module)-[*]-(n)
 RETURN n.name AS name, n.start_line AS start, n.end_line AS end, m.path AS path, n.docstring AS docstring
 LIMIT 1
+"""
+
+CYPHER_LOAD_FUNCTION_REGISTRY = """
+MATCH (n)
+WHERE n.qualified_name IS NOT NULL
+  AND ANY(label IN labels(n) WHERE label IN ['Function', 'Method', 'Class', 'AnonymousFunction'])
+RETURN n.qualified_name AS qn,
+       [l IN labels(n) WHERE l IN ['Function', 'Method', 'Class', 'AnonymousFunction']][0] AS type
 """
 
 

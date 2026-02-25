@@ -1,3 +1,12 @@
+# External System Dependencies (not managed by pip/uv):
+# - cmake: Required for building pymgclient
+# - ripgrep (rg): Required for shell command text searching
+# - Node.js (optional): Recommended for TypeScript/JavaScript projects
+#   Enables native module resolution via require.resolve() for accurate
+#   import path resolution in monorepos and complex TS configs.
+#   Falls back to Python-based resolution if not available.
+# - Docker: Required for running Memgraph graph database
+
 [project]
 name = "code-graph-rag"
 version = "0.0.62"
@@ -54,6 +63,8 @@ treesitter-full = [
     "tree-sitter-java>=0.23.5",
     "tree-sitter-cpp>=0.23.0",
     "tree-sitter-lua>=0.0.19",
+    "tree-sitter-css>=0.23.2",
+    "tree-sitter-html>=0.23.2",
 ]
 
 semantic = [

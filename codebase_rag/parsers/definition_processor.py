@@ -9,9 +9,12 @@ from .. import constants as cs
 from .. import logs as ls
 from ..types_defs import ASTNode, FunctionRegistryTrieProtocol, SimpleNameLookup
 from .class_ingest import ClassIngestMixin
+from .css import CssIngestMixin
 from .dependency_parser import parse_dependencies
+from .frameworks import CssInJsIngestMixin, ReactIngestMixin
 from .function_ingest import FunctionIngestMixin
 from .handlers import get_handler
+from .html import HtmlIngestMixin
 from .js_ts.ingest import JsTsIngestMixin
 from .utils import safe_decode_with_fallback
 
@@ -26,6 +29,10 @@ class DefinitionProcessor(
     FunctionIngestMixin,
     ClassIngestMixin,
     JsTsIngestMixin,
+    CssIngestMixin,
+    HtmlIngestMixin,
+    ReactIngestMixin,
+    CssInJsIngestMixin,
 ):
     _handler: LanguageHandler
 
@@ -88,7 +95,10 @@ class DefinitionProcessor(
             module_qn = cs.SEPARATOR_DOT.join(
                 [self.project_name] + list(relative_path.with_suffix("").parts)
             )
-            if file_path.name in (cs.INIT_PY, cs.MOD_RS):
+            if (
+                file_path.name in (cs.INIT_PY, cs.MOD_RS)
+                or file_path.name in cs.JS_TS_INDEX_FILENAMES
+            ):
                 module_qn = cs.SEPARATOR_DOT.join(
                     [self.project_name] + list(relative_path.parent.parts)
                 )
@@ -100,6 +110,7 @@ class DefinitionProcessor(
                     cs.KEY_QUALIFIED_NAME: module_qn,
                     cs.KEY_NAME: file_path.name,
                     cs.KEY_PATH: relative_path_str,
+                    cs.KEY_LANGUAGE: language.value,
                 },
             )
 
@@ -129,13 +140,27 @@ class DefinitionProcessor(
             self._ingest_all_functions(root_node, module_qn, language, queries)
             self._ingest_classes_and_methods(root_node, module_qn, language, queries)
             self._ingest_object_literal_methods(root_node, module_qn, language, queries)
-            self._ingest_commonjs_exports(root_node, module_qn, language, queries)
-            if language in {cs.SupportedLanguage.JS, cs.SupportedLanguage.TS}:
-                self._ingest_es6_exports(root_node, module_qn, language, queries)
             self._ingest_assignment_arrow_functions(
                 root_node, module_qn, language, queries
             )
+            self._ingest_commonjs_exports(root_node, module_qn, language, queries)
+            self._ingest_es6_exports(root_node, module_qn, language, queries)
             self._ingest_prototype_inheritance(root_node, module_qn, language, queries)
+
+            self._ingest_css_rules(root_node, module_qn, language, queries)
+            self._ingest_scss_variables(root_node, module_qn, language, queries)
+            self._ingest_scss_at_rules(root_node, module_qn, language, queries)
+            self._ingest_css_variables(root_node, module_qn, language, queries)
+            self._ingest_media_queries(root_node, module_qn, language, queries)
+            self._ingest_keyframe_animations(root_node, module_qn, language, queries)
+
+            self._ingest_html_elements(root_node, module_qn, language, queries)
+            self._ingest_stylesheet_references(root_node, module_qn, language, queries)
+
+            self._ingest_react_components(
+                root_node, module_qn, file_path, language, queries
+            )
+            self._ingest_css_in_js(root_node, module_qn, file_path, language, queries)
 
             return (root_node, language)
 

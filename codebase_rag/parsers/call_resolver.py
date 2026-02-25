@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from loguru import logger
 from tree_sitter import Node
 
 from .. import constants as cs
 from .. import logs as ls
+from ..services import IngestorProtocol
 from ..types_defs import FunctionRegistryTrieProtocol, NodeType
 from .import_processor import ImportProcessor
+from .js_ts.utils import extract_package_name_from_qn, is_external_import
 from .py import resolve_class_name
 from .type_inference import TypeInferenceEngine
+
+if TYPE_CHECKING:
+    from .workspace.protocol import WorkspaceResolver
 
 
 class CallResolver:
@@ -20,11 +26,15 @@ class CallResolver:
         import_processor: ImportProcessor,
         type_inference: TypeInferenceEngine,
         class_inheritance: dict[str, list[str]],
+        ingestor: IngestorProtocol | None = None,
+        workspace_resolver: WorkspaceResolver | None = None,
     ) -> None:
         self.function_registry = function_registry
         self.import_processor = import_processor
         self.type_inference = type_inference
         self.class_inheritance = class_inheritance
+        self.ingestor = ingestor
+        self.workspace_resolver = workspace_resolver
 
     def _resolve_class_qn_from_type(
         self, var_type: str, import_map: dict[str, str], module_qn: str
@@ -98,9 +108,19 @@ class CallResolver:
         local_var_types: dict[str, str] | None,
     ) -> tuple[str, str] | None:
         if module_qn not in self.import_processor.import_mapping:
+            logger.debug(ls.CALL_IMPORT_MAP_MISSING.format(module_qn=module_qn))
             return None
 
         import_map = self.import_processor.import_mapping[module_qn]
+        if not import_map:
+            logger.debug(ls.CALL_IMPORT_MAP_EMPTY.format(module_qn=module_qn))
+        else:
+            import_keys = list(import_map.keys())[:10]
+            logger.debug(
+                ls.CALL_IMPORT_MAP_CONTENTS.format(
+                    module_qn=module_qn, import_keys=import_keys
+                )
+            )
 
         if result := self._try_resolve_direct_import(call_name, import_map):
             return result
@@ -123,6 +143,50 @@ class CallResolver:
                 ls.CALL_DIRECT_IMPORT.format(call_name=call_name, qn=imported_qn)
             )
             return self.function_registry[imported_qn], imported_qn
+
+        # (H) imported_qn is {barrel_module_qn}.{name} — check barrel's re-export chain
+        parts = imported_qn.rsplit(cs.SEPARATOR_DOT, 1)
+        if len(parts) == 2:
+            barrel_module_qn, reexported_name = parts
+            barrel_imports = self.import_processor.import_mapping.get(
+                barrel_module_qn, {}
+            )
+            if source_qn := barrel_imports.get(reexported_name):
+                if source_qn in self.function_registry:
+                    logger.debug(
+                        ls.CALL_REEXPORT_CHAIN.format(
+                            call_name=call_name,
+                            barrel_qn=imported_qn,
+                            source_qn=source_qn,
+                        )
+                    )
+                    return self.function_registry[source_qn], source_qn
+
+        # (H) On-demand external function creation for package.json dependencies
+        if self.ingestor and is_external_import(imported_qn, self.workspace_resolver):
+            ext_parts = imported_qn.rsplit(cs.SEPARATOR_DOT, 1)
+            if len(ext_parts) == 2:
+                module_qn_ext, func_name = ext_parts
+                pkg_name = extract_package_name_from_qn(imported_qn)
+                self.ingestor.ensure_node_batch(
+                    cs.NodeLabel.FUNCTION,
+                    {
+                        cs.KEY_NAME: func_name,
+                        cs.KEY_QUALIFIED_NAME: imported_qn,
+                        cs.KEY_IS_EXTERNAL: True,
+                        cs.KEY_TYPE: NodeType.FUNCTION,
+                    },
+                )
+                self.ingestor.ensure_relationship_batch(
+                    (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn_ext),
+                    cs.RelationshipType.DEFINES,
+                    (cs.NodeLabel.FUNCTION, cs.KEY_QUALIFIED_NAME, imported_qn),
+                )
+                self.function_registry.register_external(imported_qn, NodeType.FUNCTION)
+                logger.debug(
+                    ls.CALL_EXTERNAL_CREATED.format(qn=imported_qn, pkg=pkg_name)
+                )
+                return NodeType.FUNCTION, imported_qn
         return None
 
     def _try_resolve_qualified_call(
@@ -202,6 +266,22 @@ class CallResolver:
                 ls.CALL_SAME_MODULE.format(call_name=call_name, qn=same_module_func_qn)
             )
             return self.function_registry[same_module_func_qn], same_module_func_qn
+
+        logger.debug(ls.CALL_REGISTRY_MISSING.format(func_qn=same_module_func_qn))
+        module_funcs = [
+            qn for qn in self.function_registry.keys() if qn.startswith(module_qn)
+        ]
+        logger.debug(
+            ls.CALL_REGISTRY_MODULE_FUNCS.format(
+                count=len(module_funcs), module_qn=module_qn
+            )
+        )
+        if module_funcs:
+            logger.debug(
+                ls.CALL_REGISTRY_EXAMPLES.format(
+                    module_qn=module_qn, examples=module_funcs[:5]
+                )
+            )
         return None
 
     def _try_resolve_via_trie(
@@ -213,10 +293,47 @@ class CallResolver:
             logger.debug(ls.CALL_UNRESOLVED.format(call_name=call_name))
             return None
 
-        possible_matches.sort(
-            key=lambda qn: self._calculate_import_distance(qn, module_qn)
-        )
-        best_candidate_qn = possible_matches[0]
+        caller_parts = module_qn.split(cs.SEPARATOR_DOT)
+        caller_in_test = cs.TRIE_TEST_SEGMENT in caller_parts
+
+        filtered = []
+        for qn in possible_matches:
+            candidate_parts = qn.split(cs.SEPARATOR_DOT)
+            candidate_in_test = cs.TRIE_TEST_SEGMENT in candidate_parts
+            if not caller_in_test and candidate_in_test:
+                continue
+            filtered.append(qn)
+
+        if not filtered:
+            logger.debug(
+                ls.CALL_TRIE_ALL_REJECTED.format(
+                    call_name=call_name, count=len(possible_matches)
+                )
+            )
+            return None
+
+        filtered.sort(key=lambda qn: self._calculate_import_distance(qn, module_qn))
+        best_candidate_qn = filtered[0]
+
+        candidate_parts = best_candidate_qn.split(cs.SEPARATOR_DOT)
+        common_prefix = 0
+        for i in range(min(len(caller_parts), len(candidate_parts))):
+            if caller_parts[i] == candidate_parts[i]:
+                common_prefix += 1
+            else:
+                break
+
+        if common_prefix < cs.TRIE_MIN_COMMON_PREFIX:
+            logger.debug(
+                ls.CALL_TRIE_REJECTED.format(
+                    call_name=call_name,
+                    qn=best_candidate_qn,
+                    common_prefix=common_prefix,
+                    threshold=cs.TRIE_MIN_COMMON_PREFIX,
+                )
+            )
+            return None
+
         logger.debug(
             ls.CALL_TRIE_FALLBACK.format(call_name=call_name, qn=best_candidate_qn)
         )

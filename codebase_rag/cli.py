@@ -129,6 +129,16 @@ def start(
         "--interactive-setup",
         help=ch.HELP_INTERACTIVE_SETUP,
     ),
+    log_file: str | None = typer.Option(
+        None,
+        "--log-file",
+        help=ch.HELP_START_LOG_FILE,
+    ),
+    files: list[str] | None = typer.Option(
+        None,
+        "--files",
+        help=ch.HELP_START_FILES,
+    ),
 ) -> None:
     app_context.session.confirm_edits = not no_confirm
 
@@ -145,6 +155,11 @@ def start(
     effective_batch_size = settings.resolve_batch_size(batch_size)
 
     if update_graph:
+        effective_log_file = log_file or cs.CLI_LOG_FILE_DEFAULT
+        log_path = Path(effective_log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.add(str(log_path), level="DEBUG", format=cs.LOG_FORMAT)
+        logger.info(ls.SCAN_LOG_FILE_CONFIGURED.format(path=log_path))
         repo_to_update = Path(target_repo_path)
         _info(
             style(cs.CLI_MSG_UPDATING_GRAPH.format(path=repo_to_update), cs.Color.GREEN)
@@ -168,6 +183,7 @@ def start(
 
             parsers, queries = load_parsers()
 
+            file_filter = [repo_to_update / f for f in files] if files else None
             updater = GraphUpdater(
                 ingestor,
                 repo_to_update,
@@ -175,6 +191,7 @@ def start(
                 queries,
                 unignore_paths,
                 exclude_paths,
+                file_filter=file_filter,
             )
             updater.run()
 

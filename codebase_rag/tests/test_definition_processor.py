@@ -772,6 +772,39 @@ class TestProcessFile:
         assert "subpkg" in qn
         assert "__init__" not in qn
 
+    def test_process_file_index_ts_uses_parent_qn(
+        self, temp_repo: Path, definition_processor: GraphUpdater
+    ) -> None:
+        if find_spec("tree_sitter_typescript") is None:
+            pytest.skip("TypeScript parser not available")
+
+        src_dir = temp_repo / "libs" / "foo" / "src"
+        src_dir.mkdir(parents=True)
+        index_file = src_dir / "index.ts"
+        index_file.write_text("export function hello() {}")
+
+        from codebase_rag.constants import SupportedLanguage
+
+        result = definition_processor.factory.definition_processor.process_file(
+            index_file,
+            SupportedLanguage.TS,
+            definition_processor.queries,
+            {},
+        )
+
+        assert result is not None
+
+        node_calls = definition_processor.ingestor.ensure_node_batch.call_args_list
+        module_nodes = [c for c in node_calls if c[0][0] == "Module"]
+
+        assert len(module_nodes) >= 1
+        module_props = module_nodes[-1][0][1]
+        qn = module_props["qualified_name"]
+        assert "index" not in qn
+        assert "libs" in qn
+        assert "foo" in qn
+        assert "src" in qn
+
     def test_process_file_unsupported_language_returns_none(
         self, temp_repo: Path, definition_processor: GraphUpdater
     ) -> None:

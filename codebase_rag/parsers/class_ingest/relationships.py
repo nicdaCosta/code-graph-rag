@@ -28,10 +28,19 @@ def create_class_relationships(
     resolve_to_qn: Callable[[str, str], str],
     function_registry: FunctionRegistryTrieProtocol,
 ) -> None:
+    from loguru import logger
+
     parent_classes = pe.extract_parent_classes(
         class_node, module_qn, import_processor, resolve_to_qn
     )
     class_inheritance[class_qn] = parent_classes
+
+    if not parent_classes:
+        logger.debug(f"No inheritance found for {class_qn}")
+    else:
+        logger.debug(
+            f"{class_qn} inherits from {len(parent_classes)} parent(s): {parent_classes}"
+        )
 
     ingestor.ensure_relationship_batch(
         (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),

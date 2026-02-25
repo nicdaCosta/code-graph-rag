@@ -347,6 +347,7 @@ class JsTsIngestMixin(JsTsModuleSystemMixin):
                 cs.JS_OBJECT_ARROW_QUERY,
                 cs.JS_ASSIGNMENT_ARROW_QUERY,
                 cs.JS_ASSIGNMENT_FUNCTION_QUERY,
+                cs.JS_LEXICAL_ARROW_QUERY,
             ]:
                 self._process_arrow_query(
                     lang_query, query_text, root_node, module_qn, lang_config

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loguru import logger
 from tree_sitter import Node
@@ -21,6 +24,12 @@ from .stdlib_extractor import (
 )
 from .utils import get_query_cursor, safe_decode_text, safe_decode_with_fallback
 
+if TYPE_CHECKING:
+    from codebase_rag.types_defs import ModuleResolverProtocol
+
+    from .js_ts.tsconfig_resolver import TsConfigResolver
+    from .workspace.protocol import WorkspaceResolver
+
 
 class ImportProcessor:
     def __init__(
@@ -29,15 +38,20 @@ class ImportProcessor:
         project_name: str,
         ingestor: IngestorProtocol | None = None,
         function_registry: FunctionRegistryTrieProtocol | None = None,
+        workspace_resolver: WorkspaceResolver | None = None,
+        module_resolver: ModuleResolverProtocol | None = None,
     ) -> None:
         self.repo_path = repo_path
         self.project_name = project_name
         self.ingestor = ingestor
         self.function_registry = function_registry
+        self.workspace_resolver = workspace_resolver
+        self.module_resolver = module_resolver
         self.import_mapping: dict[str, dict[str, str]] = {}
         self.stdlib_extractor = StdlibExtractor(
             function_registry, repo_path, project_name
         )
+        self.tsconfig_resolver: TsConfigResolver | None = None
 
         load_persistent_cache()
 
@@ -84,7 +98,8 @@ class ImportProcessor:
                 case cs.SupportedLanguage.PYTHON:
                     self._parse_python_imports(captures, module_qn)
                 case cs.SupportedLanguage.JS | cs.SupportedLanguage.TS:
-                    self._parse_js_ts_imports(captures, module_qn)
+                    self._parse_js_ts_imports(captures, module_qn, language)
+                    self._parse_dynamic_imports(root_node, module_qn, language, queries)
                 case cs.SupportedLanguage.JAVA:
                     self._parse_java_imports(captures, module_qn)
                 case cs.SupportedLanguage.RUST:
@@ -199,7 +214,15 @@ class ImportProcessor:
         return import_path
 
     def _is_local_js_import(self, full_name: str) -> bool:
-        return full_name.startswith(self.project_name + cs.SEPARATOR_DOT)
+        if full_name.startswith(self.project_name + cs.SEPARATOR_DOT):
+            return True
+
+        if self.workspace_resolver:
+            package_name, _ = self.workspace_resolver.normalize_package_name(full_name)
+            if self.workspace_resolver.is_internal_package(package_name):
+                return True
+
+        return False
 
     def _resolve_js_internal_module(self, full_name: str) -> str:
         if full_name.endswith(cs.IMPORT_DEFAULT_SUFFIX):
@@ -240,10 +263,17 @@ class ImportProcessor:
                 cs.KEY_IS_EXTERNAL: True,
             },
         )
+        # (H) Link external Module to its ExternalPackage
+        if self.workspace_resolver:
+            pkg_name, _ = self.workspace_resolver.normalize_package_name(full_name)
+            if pkg_name in self.workspace_resolver.external_packages:
+                self.ingestor.ensure_relationship_batch(
+                    (cs.NodeLabel.EXTERNAL_PACKAGE, cs.KEY_NAME, pkg_name),
+                    cs.RelationshipType.CONTAINS_MODULE,
+                    (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_path),
+                )
 
     def _resolve_rust_import_path(self, import_path: str, module_qn: str) -> str:
-        # (H) crate:: is always relative to the crate root, not the current module.
-        # (H) We find the src directory in the qualified name to identify the crate root.
         if self._is_local_rust_import(import_path):
             path_without_crate = import_path[len(cs.RUST_CRATE_PREFIX) :]
             module_parts = module_qn.split(cs.SEPARATOR_DOT)
@@ -263,6 +293,34 @@ class ImportProcessor:
         self._ensure_external_module_node(module_path, import_path)
         return module_path
 
+    def _try_workspace_resolution(self, import_path: str) -> str | None:
+        """Attempt to resolve import via workspace resolver.
+
+        Returns:
+            str | None: Qualified name if resolved, None otherwise
+        """
+        if not self.workspace_resolver:
+            return None
+
+        package_name, subpath = self.workspace_resolver.normalize_package_name(
+            import_path
+        )
+
+        if not self.workspace_resolver.is_internal_package(package_name):
+            return None
+
+        qualified_name = self.workspace_resolver.resolve_package_to_path(
+            package_name, subpath
+        )
+
+        if qualified_name:
+            logger.debug(
+                f"Workspace resolved: {import_path} -> {qualified_name} "
+                f"(package: {package_name}, subpath: {subpath})"
+            )
+
+        return qualified_name
+
     def _resolve_module_path(
         self,
         full_name: str,
@@ -271,15 +329,15 @@ class ImportProcessor:
     ) -> str:
         project_prefix = self.project_name + cs.SEPARATOR_DOT
         match language:
-            # (H) Java MODULE semantics: Internal imports point to file-level MODULE
-            # (H) nodes (e.g., project.utils.StringUtils) because Java files are named
-            # (H) after their primary class. External imports point to package-level
-            # (H) (e.g., java.util) because we lack source code to create file-level
-            # (H) nodes. This asymmetry is intentional.
             case cs.SupportedLanguage.JAVA:
                 if full_name.startswith(project_prefix):
                     return full_name
             case cs.SupportedLanguage.JS | cs.SupportedLanguage.TS:
+                if self.workspace_resolver:
+                    resolved = self._try_workspace_resolution(full_name)
+                    if resolved:
+                        return resolved
+
                 if self._is_local_js_import(full_name):
                     return self._resolve_js_internal_module(full_name)
             case cs.SupportedLanguage.RUST:
@@ -393,7 +451,9 @@ class ImportProcessor:
 
         return cs.SEPARATOR_DOT.join(target_parts)
 
-    def _parse_js_ts_imports(self, captures: dict, module_qn: str) -> None:
+    def _parse_js_ts_imports(
+        self, captures: dict, module_qn: str, language: cs.SupportedLanguage
+    ) -> None:
         for import_node in captures.get(cs.CAPTURE_IMPORT, []):
             if import_node.type == cs.TS_IMPORT_STATEMENT:
                 source_module = None
@@ -401,7 +461,7 @@ class ImportProcessor:
                     if child.type == cs.TS_STRING:
                         source_text = safe_decode_with_fallback(child).strip("'\"")
                         source_module = self._resolve_js_module_path(
-                            source_text, module_qn
+                            source_text, module_qn, language
                         )
                         break
 
@@ -413,13 +473,86 @@ class ImportProcessor:
                         self._parse_js_import_clause(child, source_module, module_qn)
 
             elif import_node.type == cs.TS_LEXICAL_DECLARATION:
-                self._parse_js_require(import_node, module_qn)
+                self._parse_js_require(import_node, module_qn, language)
 
             elif import_node.type == cs.TS_EXPORT_STATEMENT:
-                self._parse_js_reexport(import_node, module_qn)
+                self._parse_js_reexport(import_node, module_qn, language)
 
-    def _resolve_js_module_path(self, import_path: str, current_module: str) -> str:
+    def _resolve_js_module_path(
+        self, import_path: str, current_module: str, language: cs.SupportedLanguage
+    ) -> str:
+        """Resolve JavaScript/TypeScript module path to qualified name.
+
+        Resolution order:
+        1. Use ModuleResolver if available (delegates to resolver plugin)
+        2. Fallback to legacy resolution logic
+
+        Args:
+            import_path: Import specifier from source code
+            current_module: QN of the importing module
+
+        Returns:
+            Qualified name for the imported module
+        """
+        if self.module_resolver:
+            try:
+                if current_module.startswith(f"{self.project_name}."):
+                    parts = current_module[len(self.project_name) + 1 :].split(".")
+                    current_file = self.repo_path / Path(*parts)
+                    for ext in [
+                        ".ts",
+                        ".tsx",
+                        ".js",
+                        ".jsx",
+                        ".mjs",
+                        ".cjs",
+                        ".mts",
+                        ".cts",
+                    ]:
+                        if (current_file.parent / f"{current_file.name}{ext}").exists():
+                            current_file = (
+                                current_file.parent / f"{current_file.name}{ext}"
+                            )
+                            break
+
+                    resolved_path = self.module_resolver.resolve(
+                        import_path, current_file
+                    )
+
+                    if resolved_path:
+                        from codebase_rag.language_spec import LANGUAGE_FQN_SPECS
+
+                        fqn_spec = LANGUAGE_FQN_SPECS.get(language)
+                        if fqn_spec:
+                            module_parts = fqn_spec.file_to_module_parts(
+                                resolved_path, self.repo_path
+                            )
+                            if module_parts:
+                                qn = f"{self.project_name}.{'.'.join(module_parts)}"
+                                logger.debug(
+                                    f"ModuleResolver: {import_path} -> {qn} (via {resolved_path})"
+                                )
+                                return qn
+            except (ValueError, AttributeError, KeyError) as e:
+                logger.debug(f"ModuleResolver failed for {import_path}: {e}")
+
         if not import_path.startswith(cs.PATH_CURRENT_DIR):
+            if self.tsconfig_resolver:
+                if resolved := self.tsconfig_resolver.resolve_path_mapping(
+                    import_path, current_module
+                ):
+                    logger.debug(
+                        f"tsconfig resolved: {import_path} -> {resolved} (from {current_module})"
+                    )
+                    full_qn = f"{self.project_name}{cs.SEPARATOR_DOT}{resolved}"
+                    if full_qn.endswith(f"{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}"):
+                        full_qn = full_qn[: -len(f"{cs.SEPARATOR_DOT}{cs.INDEX_INDEX}")]
+                    return full_qn
+
+            if self.workspace_resolver:
+                if resolved := self._try_workspace_resolution(import_path):
+                    return resolved
+
             return import_path.replace(cs.SEPARATOR_SLASH, cs.SEPARATOR_DOT)
 
         current_parts = current_module.split(cs.SEPARATOR_DOT)[:-1]
@@ -461,8 +594,14 @@ class ImportProcessor:
                                 if alias_node
                                 else imported_name
                             )
-                            self.import_mapping[current_module][local_name] = (
+                            direct_qn = (
                                 f"{source_module}{cs.SEPARATOR_DOT}{imported_name}"
+                            )
+                            # (H) Flatten barrel re-export: if source_module already re-exports imported_name, use source QN
+                            barrel_imports = self.import_mapping.get(source_module, {})
+                            resolved_qn = barrel_imports.get(imported_name, direct_qn)
+                            self.import_mapping[current_module][local_name] = (
+                                resolved_qn
                             )
                             logger.debug(
                                 ls.IMP_JS_NAMED.format(
@@ -486,7 +625,46 @@ class ImportProcessor:
                         )
                         break
 
-    def _parse_js_require(self, decl_node: Node, current_module: str) -> None:
+    def _parse_dynamic_imports(
+        self,
+        root_node: Node,
+        module_qn: str,
+        language: cs.SupportedLanguage,
+        queries: dict[cs.SupportedLanguage, LanguageQueries],
+    ) -> None:
+        if language not in (cs.SupportedLanguage.JS, cs.SupportedLanguage.TS):
+            return
+
+        lang_obj = queries.get(language, {}).get(cs.QUERY_LANGUAGE)
+        if not lang_obj:
+            return
+
+        try:
+            from tree_sitter import Query, QueryCursor
+
+            query = Query(lang_obj, cs.JS_DYNAMIC_IMPORT_QUERY)
+            captures = QueryCursor(query).captures(root_node)
+
+            for module_path_node in captures.get(cs.CAPTURE_MODULE_PATH, []):
+                if module_path_node.text:
+                    import_path = safe_decode_with_fallback(module_path_node).strip(
+                        "'\""
+                    )
+                    resolved_module = self._resolve_js_module_path(
+                        import_path, module_qn, language
+                    )
+
+                    self.import_mapping[module_qn][resolved_module] = resolved_module
+
+                    logger.debug(
+                        f"Dynamic import: {module_qn} -> {resolved_module} (source: {import_path})"
+                    )
+        except Exception as e:
+            logger.debug(f"Dynamic import parsing failed for {module_qn}: {e}")
+
+    def _parse_js_require(
+        self, decl_node: Node, current_module: str, language: cs.SupportedLanguage
+    ) -> None:
         for declarator in decl_node.children:
             if declarator.type == cs.TS_VARIABLE_DECLARATOR:
                 name_node = declarator.child_by_field_name(cs.FIELD_NAME)
@@ -495,7 +673,6 @@ class ImportProcessor:
                 if (
                     name_node
                     and value_node
-                    and name_node.type == cs.TS_IDENTIFIER
                     and value_node.type == cs.TS_CALL_EXPRESSION
                 ):
                     func_node = value_node.child_by_field_name(cs.FIELD_FUNCTION)
@@ -509,31 +686,50 @@ class ImportProcessor:
                     ):
                         for arg in args_node.children:
                             if arg.type == cs.TS_STRING:
-                                var_name = safe_decode_with_fallback(name_node)
                                 required_module = safe_decode_with_fallback(arg).strip(
                                     "'\""
                                 )
 
                                 resolved_module = self._resolve_js_module_path(
-                                    required_module, current_module
+                                    required_module, current_module, language
                                 )
-                                self.import_mapping[current_module][var_name] = (
-                                    resolved_module
-                                )
-                                logger.debug(
-                                    ls.IMP_JS_REQUIRE.format(
-                                        var=var_name, module=resolved_module
+
+                                if name_node.type == cs.TS_IDENTIFIER:
+                                    var_name = safe_decode_with_fallback(name_node)
+                                    self.import_mapping[current_module][var_name] = (
+                                        resolved_module
                                     )
-                                )
+                                    logger.debug(
+                                        ls.IMP_JS_REQUIRE.format(
+                                            var=var_name, module=resolved_module
+                                        )
+                                    )
+
+                                if self.ingestor:
+                                    self.ingestor.ensure_relationship_batch(
+                                        (
+                                            cs.NodeLabel.MODULE,
+                                            cs.KEY_QUALIFIED_NAME,
+                                            current_module,
+                                        ),
+                                        cs.RelationshipType.IMPORTS,
+                                        (
+                                            cs.NodeLabel.MODULE,
+                                            cs.KEY_QUALIFIED_NAME,
+                                            resolved_module,
+                                        ),
+                                    )
                                 break
 
-    def _parse_js_reexport(self, export_node: Node, current_module: str) -> None:
+    def _parse_js_reexport(
+        self, export_node: Node, current_module: str, language: cs.SupportedLanguage
+    ) -> None:
         source_module = None
         for child in export_node.children:
             if child.type == cs.TS_STRING:
                 source_text = safe_decode_with_fallback(child).strip("'\"")
                 source_module = self._resolve_js_module_path(
-                    source_text, current_module
+                    source_text, current_module, language
                 )
                 break
 

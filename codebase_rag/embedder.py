@@ -15,9 +15,9 @@ from .constants import UNIXCODER_MODEL
 from .utils.dependencies import has_torch, has_transformers
 
 if has_torch() and has_transformers():
-    import numpy as np
-    import torch
-    from numpy.typing import NDArray
+    import numpy as np  # type: ignore[import-untyped]
+    import torch  # type: ignore[import-untyped]
+    from numpy.typing import NDArray  # type: ignore[import-untyped]
 
     from .unixcoder import UniXcoder
 

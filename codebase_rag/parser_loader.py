@@ -149,6 +149,24 @@ def _import_language_loaders() -> dict[cs.SupportedLanguage, LanguageLoader]:
             cs.QUERY_LANGUAGE,
             cs.SupportedLanguage.LUA,
         ),
+        LanguageImport(
+            cs.SupportedLanguage.CSS,
+            cs.TreeSitterModule.CSS,
+            cs.QUERY_LANGUAGE,
+            cs.SupportedLanguage.CSS,
+        ),
+        LanguageImport(
+            cs.SupportedLanguage.HTML,
+            cs.TreeSitterModule.HTML,
+            cs.QUERY_LANGUAGE,
+            cs.SupportedLanguage.HTML,
+        ),
+        LanguageImport(
+            cs.SupportedLanguage.SCSS,
+            cs.TreeSitterModule.CSS,
+            cs.QUERY_LANGUAGE,
+            cs.SupportedLanguage.SCSS,
+        ),
     ]
 
     loaders: dict[cs.SupportedLanguage, LanguageLoader] = {
@@ -256,7 +274,7 @@ def _process_language(
 ) -> bool:
     lang_lib = LANGUAGE_LIBRARIES.get(lang_name)
     if not lang_lib:
-        logger.debug(ls.LIB_NOT_AVAILABLE.format(lang=lang_name))
+        logger.warning(ls.LIB_NOT_AVAILABLE.format(lang=lang_name))
         return False
 
     try:

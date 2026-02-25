@@ -80,6 +80,10 @@ HELP_INTERACTIVE_SETUP = (
     "Show interactive prompt to select which detected directories to keep. "
     "Without this flag, all directories matching ignore patterns are automatically excluded."
 )
+HELP_START_LOG_FILE = (
+    "Write full DEBUG log to this file (parent directory created if missing)."
+)
+HELP_START_FILES = "Scan only these file paths (relative to repo root). Skips Pass 1, pre-loads registry from graph."
 
 CLI_COMMANDS: dict[CLICommandName, str] = {
     CLICommandName.START: CMD_START,

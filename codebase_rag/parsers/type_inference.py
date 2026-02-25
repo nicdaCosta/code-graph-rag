@@ -7,6 +7,7 @@ from ..types_defs import (
     FunctionRegistryTrieProtocol,
     LanguageQueries,
     SimpleNameLookup,
+    TypeResolverProtocol,
 )
 from .import_processor import ImportProcessor
 from .java import JavaTypeInferenceEngine
@@ -30,6 +31,7 @@ class TypeInferenceEngine:
         module_qn_to_file_path: dict[str, Path],
         class_inheritance: dict[str, list[str]],
         simple_name_lookup: SimpleNameLookup,
+        type_resolver: TypeResolverProtocol | None = None,
     ):
         self.import_processor = import_processor
         self.function_registry = function_registry
@@ -40,6 +42,7 @@ class TypeInferenceEngine:
         self.module_qn_to_file_path = module_qn_to_file_path
         self.class_inheritance = class_inheritance
         self.simple_name_lookup = simple_name_lookup
+        self.type_resolver = type_resolver
 
         self._java_type_inference: JavaTypeInferenceEngine | None = None
         self._lua_type_inference: LuaTypeInferenceEngine | None = None
@@ -80,6 +83,8 @@ class TypeInferenceEngine:
                 function_registry=self.function_registry,
                 project_name=self.project_name,
                 find_method_ast_node_func=self.python_type_inference._find_method_ast_node,
+                type_resolver=self.type_resolver,
+                module_qn_to_file_path=self.module_qn_to_file_path,
             )
         return self._js_type_inference
 

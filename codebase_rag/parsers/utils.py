@@ -138,6 +138,14 @@ def ingest_exported_function(
 
     function_qn = f"{module_qn}.{function_name}"
 
+    if function_qn in function_registry:
+        ingestor.ensure_relationship_batch(
+            (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
+            cs.RelationshipType.EXPORTS,
+            (cs.NodeLabel.FUNCTION, cs.KEY_QUALIFIED_NAME, function_qn),
+        )
+        return
+
     function_props = {
         cs.KEY_QUALIFIED_NAME: function_qn,
         cs.KEY_NAME: function_name,
@@ -154,6 +162,16 @@ def ingest_exported_function(
     ingestor.ensure_node_batch(cs.NodeLabel.FUNCTION, function_props)
     function_registry[function_qn] = NodeType.FUNCTION
     simple_name_lookup[function_name].add(function_qn)
+    ingestor.ensure_relationship_batch(
+        (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
+        cs.RelationshipType.DEFINES,
+        (cs.NodeLabel.FUNCTION, cs.KEY_QUALIFIED_NAME, function_qn),
+    )
+    ingestor.ensure_relationship_batch(
+        (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, module_qn),
+        cs.RelationshipType.EXPORTS,
+        (cs.NodeLabel.FUNCTION, cs.KEY_QUALIFIED_NAME, function_qn),
+    )
 
 
 def is_method_node(func_node: ASTNode, lang_config: LanguageSpec) -> bool:

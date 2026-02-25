@@ -1,6 +1,37 @@
+import subprocess
 from pathlib import Path
 
+from loguru import logger
+
 from .. import constants as cs
+from .. import logs as ls
+
+
+def discover_repo_files(repo_path: Path) -> list[Path]:
+    git_check = subprocess.run(
+        ["git", "rev-parse", "--git-dir"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if git_check.returncode == 0:
+        logger.debug(ls.SCAN_DISCOVERY_GIT)
+        result = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        files = [
+            repo_path / line for line in result.stdout.splitlines() if line.strip()
+        ]
+    else:
+        logger.debug(ls.SCAN_DISCOVERY_RGLOB)
+        files = [p for p in repo_path.rglob("*") if p.is_file()]
+    logger.debug(ls.SCAN_DISCOVERED.format(count=len(files)))
+    return files
 
 
 def should_skip_path(

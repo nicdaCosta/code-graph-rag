@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..constants import SupportedLanguage
 from ..services import IngestorProtocol
@@ -6,13 +7,19 @@ from ..types_defs import (
     ASTCacheProtocol,
     FunctionRegistryTrieProtocol,
     LanguageQueries,
+    ModuleResolverProtocol,
     SimpleNameLookup,
+    TypeResolverProtocol,
 )
 from .call_processor import CallProcessor
 from .definition_processor import DefinitionProcessor
 from .import_processor import ImportProcessor
+from .js_ts.tsconfig_resolver import TsConfigResolver
 from .structure_processor import StructureProcessor
 from .type_inference import TypeInferenceEngine
+
+if TYPE_CHECKING:
+    from .workspace.protocol import WorkspaceResolver
 
 
 class ProcessorFactory:
@@ -27,6 +34,7 @@ class ProcessorFactory:
         ast_cache: ASTCacheProtocol,
         unignore_paths: frozenset[str] | None = None,
         exclude_paths: frozenset[str] | None = None,
+        workspace_resolver: "WorkspaceResolver | None" = None,
     ) -> None:
         self.ingestor = ingestor
         self.repo_path = repo_path
@@ -37,6 +45,7 @@ class ProcessorFactory:
         self.ast_cache = ast_cache
         self.unignore_paths = unignore_paths
         self.exclude_paths = exclude_paths
+        self.workspace_resolver = workspace_resolver
 
         self.module_qn_to_file_path: dict[str, Path] = {}
 
@@ -45,16 +54,35 @@ class ProcessorFactory:
         self._definition_processor: DefinitionProcessor | None = None
         self._type_inference: TypeInferenceEngine | None = None
         self._call_processor: CallProcessor | None = None
+        self._module_resolver: ModuleResolverProtocol | None = None
+        self._type_resolver: TypeResolverProtocol | None = None
+        self._type_resolver_initialized: bool = False
 
     @property
     def import_processor(self) -> ImportProcessor:
         if self._import_processor is None:
+            from .resolvers.factory import create_module_resolver
+
+            tsconfig_resolver = TsConfigResolver(self.repo_path)
+
+            module_resolver = create_module_resolver(
+                language=SupportedLanguage.TS,
+                repo_path=self.repo_path,
+                project_name=self.project_name,
+                workspace_resolver=self.workspace_resolver,
+                tsconfig_resolver=tsconfig_resolver,
+            )
+            self._module_resolver = module_resolver
+
             self._import_processor = ImportProcessor(
                 repo_path=self.repo_path,
                 project_name=self.project_name,
                 ingestor=self.ingestor,
                 function_registry=self.function_registry,
+                workspace_resolver=self.workspace_resolver,
+                module_resolver=module_resolver,
             )
+            self._import_processor.tsconfig_resolver = tsconfig_resolver
         return self._import_processor
 
     @property
@@ -85,6 +113,21 @@ class ProcessorFactory:
         return self._definition_processor
 
     @property
+    def type_resolver(self) -> TypeResolverProtocol | None:
+        if not self._type_resolver_initialized:
+            self._type_resolver_initialized = True
+            try:
+                from .resolvers.typescript_types import TypeScriptTypeResolver
+
+                resolver = TypeScriptTypeResolver(self.repo_path, self.project_name)
+                resolver.initialize()
+                if resolver.is_available:
+                    self._type_resolver = resolver
+            except Exception:
+                pass
+        return self._type_resolver
+
+    @property
     def type_inference(self) -> TypeInferenceEngine:
         if self._type_inference is None:
             self._type_inference = TypeInferenceEngine(
@@ -97,6 +140,7 @@ class ProcessorFactory:
                 module_qn_to_file_path=self.module_qn_to_file_path,
                 class_inheritance=self.definition_processor.class_inheritance,
                 simple_name_lookup=self.simple_name_lookup,
+                type_resolver=self.type_resolver,
             )
         return self._type_inference
 
@@ -111,5 +155,6 @@ class ProcessorFactory:
                 import_processor=self.import_processor,
                 type_inference=self.type_inference,
                 class_inheritance=self.definition_processor.class_inheritance,
+                workspace_resolver=self.workspace_resolver,
             )
         return self._call_processor

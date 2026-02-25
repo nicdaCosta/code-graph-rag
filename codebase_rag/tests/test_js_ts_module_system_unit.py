@@ -1,10 +1,13 @@
+import textwrap
 from collections import defaultdict
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from tree_sitter import Query, QueryCursor
 
 from codebase_rag import constants as cs
+from codebase_rag.parser_loader import load_parsers
 from codebase_rag.parsers.js_ts.module_system import JsTsModuleSystemMixin
 from codebase_rag.tests.conftest import create_mock_node
 
@@ -83,7 +86,9 @@ class TestProcessCommonjsImport:
     ) -> None:
         mock_import_processor._resolve_js_module_path.return_value = "fs"
 
-        mixin._process_commonjs_import("readFile", "fs", "my_module")
+        mixin._process_commonjs_import(
+            "readFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
 
         mock_ingestor.ensure_node_batch.assert_called_once()
         call_args = mock_ingestor.ensure_node_batch.call_args
@@ -102,8 +107,12 @@ class TestProcessCommonjsImport:
     ) -> None:
         mock_import_processor._resolve_js_module_path.return_value = "fs"
 
-        mixin._process_commonjs_import("readFile", "fs", "my_module")
-        mixin._process_commonjs_import("writeFile", "fs", "my_module")
+        mixin._process_commonjs_import(
+            "readFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
+        mixin._process_commonjs_import(
+            "writeFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
 
         assert mock_ingestor.ensure_node_batch.call_count == 1
 
@@ -117,7 +126,9 @@ class TestProcessCommonjsImport:
             "Resolution failed"
         )
 
-        mixin._process_commonjs_import("readFile", "fs", "my_module")
+        mixin._process_commonjs_import(
+            "readFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
 
         mock_ingestor.ensure_node_batch.assert_not_called()
 
@@ -154,7 +165,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_called_once()
 
@@ -195,7 +208,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_called_once()
 
@@ -214,7 +229,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -237,7 +254,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -267,7 +286,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -358,7 +379,9 @@ class TestEdgeCases:
             fields={cs.FIELD_VALUE: call_expr},
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -373,7 +396,9 @@ class TestEdgeCases:
             fields={cs.FIELD_NAME: object_pattern},
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -392,7 +417,9 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -415,7 +442,9 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -448,7 +477,9 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -489,6 +520,182 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
+
+
+class TestEs6ExportConstQueryCapture:
+    @pytest.fixture(scope="class")
+    def ts_parser_and_language(self) -> tuple:
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+        lang = queries[cs.SupportedLanguage.TS][cs.QUERY_LANGUAGE]
+        return parser, lang
+
+    def _run_export_const_query(self, parser, lang, code: str) -> dict:
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+        cleaned = textwrap.dedent(cs.JS_ES6_EXPORT_CONST_QUERY).strip()
+        query = Query(lang, cleaned)
+        cursor = QueryCursor(query)
+        return cursor.captures(tree.root_node)
+
+    def test_captures_arrow_function_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = "export const handleClick = (e) => { e.preventDefault(); };"
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "handleClick"
+        assert funcs[0].type == cs.TS_ARROW_FUNCTION
+
+    def test_captures_function_expression_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = "export const greet = function(name) { return name; };"
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "greet"
+        assert funcs[0].type == cs.TS_FUNCTION_EXPRESSION
+
+    def test_captures_call_expression_factory_export(
+        self, ts_parser_and_language
+    ) -> None:
+        parser, lang = ts_parser_and_language
+        code = (
+            "export const getFlights = createSelector(selectState, (s) => s.flights);"
+        )
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "getFlights"
+        assert funcs[0].type == cs.TS_CALL_EXPRESSION
+
+    def test_captures_connect_factory_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = "export const mapStateToProps = connect(mapState, mapDispatch);"
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        funcs = captures.get(cs.CAPTURE_EXPORT_FUNCTION, [])
+        assert len(names) == 1
+        assert names[0].text.decode(cs.ENCODING_UTF8) == "mapStateToProps"
+        assert funcs[0].type == cs.TS_CALL_EXPRESSION
+
+    def test_skips_string_literal_export(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = 'export const API_URL = "https://api.example.com";'
+        captures = self._run_export_const_query(parser, lang, code)
+
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        assert len(names) == 0
+
+
+class TestEs6ExportBlockQueryCapture:
+    @pytest.fixture(scope="class")
+    def ts_parser_and_language(self) -> tuple:
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+        lang = queries[cs.SupportedLanguage.TS][cs.QUERY_LANGUAGE]
+        return parser, lang
+
+    def _run_export_block_query(self, parser, lang, code: str) -> dict:
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+        cleaned = textwrap.dedent(cs.JS_ES6_EXPORT_BLOCK_QUERY).strip()
+        query = Query(lang, cleaned)
+        cursor = QueryCursor(query)
+        return cursor.captures(tree.root_node)
+
+    def test_captures_named_exports(self, ts_parser_and_language) -> None:
+        parser, lang = ts_parser_and_language
+        code = """
+const getFeatureDecision = () => true;
+const getConfigServiceValue = () => 'value';
+export { getFeatureDecision, getConfigServiceValue };
+"""
+        captures = self._run_export_block_query(parser, lang, code)
+        names = captures.get(cs.CAPTURE_EXPORT_NAME, [])
+        decoded = [n.text.decode(cs.ENCODING_UTF8) for n in names]
+        assert "getFeatureDecision" in decoded
+        assert "getConfigServiceValue" in decoded
+
+    def test_creates_exports_relationship_for_known_function(self) -> None:
+        ingestor = MagicMock()
+        function_registry = defaultdict(set)
+        function_registry["myproject.module.myFunc"] = set()
+
+        mixin = ConcreteModuleSystemMixin(
+            ingestor=ingestor,
+            import_processor=MagicMock(),
+            function_registry=function_registry,
+            simple_name_lookup=defaultdict(set),
+        )
+
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+
+        code = """
+const myFunc = () => true;
+export { myFunc };
+"""
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+
+        mixin._ingest_es6_exports(
+            tree.root_node,
+            "myproject.module",
+            cs.SupportedLanguage.TS,
+            queries,
+        )
+
+        ingestor.ensure_relationship_batch.assert_any_call(
+            (cs.NodeLabel.MODULE, cs.KEY_QUALIFIED_NAME, "myproject.module"),
+            cs.RelationshipType.EXPORTS,
+            (
+                cs.NodeLabel.FUNCTION,
+                cs.KEY_QUALIFIED_NAME,
+                "myproject.module.myFunc",
+            ),
+        )
+
+    def test_skips_export_for_unknown_function(self) -> None:
+        ingestor = MagicMock()
+        function_registry = defaultdict(set)
+
+        mixin = ConcreteModuleSystemMixin(
+            ingestor=ingestor,
+            import_processor=MagicMock(),
+            function_registry=function_registry,
+            simple_name_lookup=defaultdict(set),
+        )
+
+        parsers, queries = load_parsers()
+        parser = parsers[cs.SupportedLanguage.TS]
+
+        code = """
+export { unknownFunc };
+"""
+        tree = parser.parse(bytes(code, cs.ENCODING_UTF8))
+
+        mixin._ingest_es6_exports(
+            tree.root_node,
+            "myproject.module",
+            cs.SupportedLanguage.TS,
+            queries,
+        )
+
+        for call_args in ingestor.ensure_relationship_batch.call_args_list:
+            args = call_args[0]
+            if len(args) >= 3:
+                assert args[2] != (
+                    cs.NodeLabel.FUNCTION,
+                    cs.KEY_QUALIFIED_NAME,
+                    "myproject.module.unknownFunc",
+                )

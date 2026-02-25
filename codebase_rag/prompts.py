@@ -5,6 +5,7 @@ from .cypher_queries import (
     CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS,
     CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE,
     CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS,
+    CYPHER_EXAMPLE_ARRAY_METHOD_CALLBACKS,
     CYPHER_EXAMPLE_CLASS_METHODS,
     CYPHER_EXAMPLE_CLASSES_IN_PATH,
     CYPHER_EXAMPLE_CONTENT_BY_PATH,
@@ -12,6 +13,7 @@ from .cypher_queries import (
     CYPHER_EXAMPLE_FILES_IN_FOLDER,
     CYPHER_EXAMPLE_FIND_CALLERS,
     CYPHER_EXAMPLE_FIND_FILE,
+    CYPHER_EXAMPLE_FUNCTION_CALLERS,
     CYPHER_EXAMPLE_FUNCTION_WITH_PATH,
     CYPHER_EXAMPLE_KEYWORD_SEARCH,
     CYPHER_EXAMPLE_LIMIT_ONE,
@@ -256,6 +258,20 @@ cypher// "what is in the 'workflows/src' directory?" or "list files in workflows
 // Use `STARTS WITH` for path matching.
 {CYPHER_EXAMPLE_CONTENT_BY_PATH}
 
+**Pattern: Finding Function Callers/Usage**
+cypher// "who calls getFeatureDecision?" or "what files use this function?"
+// Note: callers can be Function, Method, Module, or AnonymousFunction
+{CYPHER_EXAMPLE_FUNCTION_CALLERS}
+
+**Pattern: Anonymous Functions and Callbacks**
+cypher// "Find all useEffect hooks" or "Show JSX event handlers"
+// AnonymousFunction nodes represent inline arrow functions with semantic context
+{CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS}
+
+**Pattern: Array Method Callbacks**
+cypher// "Find all map callbacks in ComponentA"
+{CYPHER_EXAMPLE_ARRAY_METHOD_CALLBACKS}
+
 **Pattern: Keyword & Concept Search (Fallback for general terms)**
 cypher// "find things related to 'database'"
 {CYPHER_EXAMPLE_KEYWORD_SEARCH}
@@ -359,6 +375,24 @@ You are a Neo4j Cypher query generator. You ONLY respond with a valid Cypher que
 *   **Cypher Query:**
     ```cypher
     {CYPHER_EXAMPLE_FILES_IN_FOLDER}
+    ```
+
+*   **Natural Language:** "who calls getFeatureDecision?"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_FUNCTION_CALLERS}
+    ```
+
+*   **Natural Language:** "Find all useEffect hooks"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS}
+    ```
+
+*   **Natural Language:** "Find all map callbacks in ComponentA"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_ARRAY_METHOD_CALLBACKS}
     ```
 
 *   **Natural Language:** "Find just one file to test"

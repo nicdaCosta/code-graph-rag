@@ -65,6 +65,7 @@ type ASTNode = Node
 class NodeType(StrEnum):
     FUNCTION = "Function"
     METHOD = "Method"
+    ANONYMOUS_FUNCTION = "AnonymousFunction"
     CLASS = "Class"
     MODULE = "Module"
     INTERFACE = "Interface"
@@ -94,6 +95,9 @@ class FunctionRegistryTrieProtocol(Protocol):
     def find_with_prefix(self, prefix: str) -> list[tuple[QualifiedName, NodeType]]: ...
 
     def find_ending_with(self, suffix: str) -> list[QualifiedName]: ...
+    def register_external(
+        self, qualified_name: QualifiedName, func_type: NodeType
+    ) -> None: ...
 
 
 class ASTCacheProtocol(Protocol):
@@ -141,6 +145,80 @@ class TreeSitterNodeProtocol(Protocol):
     def children(self) -> list[TreeSitterNodeProtocol]: ...
     @property
     def text(self) -> bytes: ...
+
+
+class ModuleResolverProtocol(Protocol):
+    """Protocol for language-specific module resolution.
+
+    Resolves import specifiers to filesystem paths, which are then converted
+    to qualified names (QNs) using the language's FQNSpec.file_to_module_parts().
+    This ensures QNs match between import resolution and function indexing.
+    """
+
+    def resolve(self, import_specifier: str, from_file: Path) -> Path | None:
+        """Resolve an import specifier to a filesystem path.
+
+        Args:
+            import_specifier: The import string from source code
+                (e.g., '@web-platform/shared-acorn-redux/src/selectors')
+            from_file: Absolute path to the file containing the import
+
+        Returns:
+            Absolute filesystem path of the resolved module, or None if:
+            - Import is external (node_modules, system package)
+            - Import cannot be resolved
+        """
+        ...
+
+    def is_external(self, import_specifier: str) -> bool:
+        """Check if an import refers to an external dependency.
+
+        Args:
+            import_specifier: The import string from source code
+
+        Returns:
+            True if this is an external package (npm, PyPI, crates.io, etc.)
+            False if internal to the repository
+        """
+        ...
+
+    def initialize(self) -> None:
+        """Initialize the resolver with repository configuration.
+
+        One-time setup that reads configuration files:
+        - TypeScript: tsconfig.json, package.json, pnpm-workspace.yaml
+        - Python: pyproject.toml, setup.py, __init__.py
+        - Rust: Cargo.toml, Cargo.lock
+
+        Note:
+            Called once after __init__().
+            Uses repo_path from __init__() to locate configuration files.
+            Should cache parsed configuration for fast resolution.
+        """
+        ...
+
+    def cleanup(self) -> None:
+        """Cleanup resources held by the resolver.
+
+        Called when the resolver is no longer needed. For example:
+        - Terminate long-running subprocesses (e.g., Node.js)
+        - Close file handles or database connections
+        - Clear large caches if memory is constrained
+
+        Note:
+            Should be idempotent and safe to call multiple times.
+        """
+        ...
+
+
+class TypeResolverProtocol(Protocol):
+    def resolve_function_types(
+        self, file_path: Path
+    ) -> dict[str, dict[str, dict[str, str]]]: ...
+    def initialize(self) -> None: ...
+    def cleanup(self) -> None: ...
+    @property
+    def is_available(self) -> bool: ...
 
 
 class ModelConfigKwargs(TypedDict, total=False):
@@ -561,7 +639,22 @@ RELATIONSHIP_SCHEMAS: tuple[RelationshipSchema, ...] = (
         (NodeLabel.EXTERNAL_PACKAGE,),
     ),
     RelationshipSchema(
-        (NodeLabel.FUNCTION, NodeLabel.METHOD, NodeLabel.ANONYMOUS_FUNCTION),
+        (NodeLabel.FUNCTION, NodeLabel.METHOD, NodeLabel.MODULE),
+        RelationshipType.CALLS,
+        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+    ),
+    RelationshipSchema(
+        (NodeLabel.MODULE,),
+        RelationshipType.DEFINES,
+        (NodeLabel.ANONYMOUS_FUNCTION,),
+    ),
+    RelationshipSchema(
+        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+        RelationshipType.DEFINES,
+        (NodeLabel.ANONYMOUS_FUNCTION,),
+    ),
+    RelationshipSchema(
+        (NodeLabel.ANONYMOUS_FUNCTION,),
         RelationshipType.CALLS,
         (NodeLabel.FUNCTION, NodeLabel.METHOD),
     ),

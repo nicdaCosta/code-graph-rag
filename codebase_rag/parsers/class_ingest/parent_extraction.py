@@ -246,11 +246,20 @@ def extract_interface_parents(
     for child in extends_clause.children:
         if child.type == cs.TS_TYPE_IDENTIFIER and child.text:
             if parent_name := safe_decode_text(child):
-                parent_classes.append(
-                    resolve_js_ts_parent_class(
+                parent_qn = resolve_js_ts_parent_class(
+                    parent_name, module_qn, import_processor, resolve_to_qn
+                )
+                parent_classes.append(parent_qn)
+                logger.debug(f"Interface {module_qn} extends {parent_qn}")
+        elif child.type == cs.TS_GENERIC_TYPE:
+            type_id = find_child_by_type(child, cs.TS_TYPE_IDENTIFIER)
+            if type_id and type_id.text:
+                if parent_name := safe_decode_text(type_id):
+                    parent_qn = resolve_js_ts_parent_class(
                         parent_name, module_qn, import_processor, resolve_to_qn
                     )
-                )
+                    parent_classes.append(parent_qn)
+                    logger.debug(f"Interface {module_qn} extends generic {parent_qn}")
     return parent_classes
 
 
@@ -309,6 +318,16 @@ def extract_implemented_interfaces(
         extract_java_interface_names(
             interfaces_node, implemented_interfaces, module_qn, resolve_to_qn
         )
+
+    if class_heritage_node := find_child_by_type(class_node, cs.TS_CLASS_HERITAGE):
+        for child in class_heritage_node.children:
+            if child.type == cs.TS_IMPLEMENTS_CLAUSE:
+                for grandchild in child.children:
+                    if grandchild.type == cs.TS_TYPE_IDENTIFIER and grandchild.text:
+                        if interface_name := safe_decode_text(grandchild):
+                            interface_qn = resolve_to_qn(interface_name, module_qn)
+                            implemented_interfaces.append(interface_qn)
+                            logger.debug(f"Class {module_qn} implements {interface_qn}")
 
     return implemented_interfaces
 

@@ -1,12 +1,9 @@
-# (H) Provider logs
 PROVIDER_REGISTERED = "Registered provider: {name}"
 
-# (H) Graph loading logs
 LOADING_GRAPH = "Loading graph from {path}"
 LOADED_GRAPH = "Loaded {nodes} nodes and {relationships} relationships with indexes"
 ENSURING_PROJECT = "Ensuring Project: {name}"
 
-# (H) Pass logs
 PASS_1_STRUCTURE = "--- Pass 1: Identifying Packages and Folders ---"
 PASS_2_FILES = (
     "\n--- Pass 2: Processing Files, Caching ASTs, and Collecting Definitions ---"
@@ -14,7 +11,6 @@ PASS_2_FILES = (
 PASS_3_CALLS = "--- Pass 3: Processing Function Calls from AST Cache ---"
 PASS_4_EMBEDDINGS = "--- Pass 4: Generating semantic embeddings ---"
 
-# (H) Analysis logs
 FOUND_FUNCTIONS = "\n--- Found {count} functions/methods in codebase ---"
 ANALYSIS_COMPLETE = "\n--- Analysis complete. Flushing all data to database... ---"
 REMOVING_STATE = "Removing in-memory state for: {path}"
@@ -22,13 +18,11 @@ REMOVED_FROM_CACHE = "  - Removed from ast_cache"
 REMOVING_QNS = "  - Removing {count} QNs from function_registry"
 CLEANED_SIMPLE_NAME = "  - Cleaned simple_name '{name}'"
 
-# (H) Function ingest logs
 FUNC_FOUND = "  Found Function: {name} (qn: {qn})"
 FUNC_EXPECTED_NODE = "Expected Node but got {actual_type}: {value}"
 METHOD_FOUND = "    Found Method: {name} (qn: {qn})"
 EXPORT_FOUND = "  Found {export_type}: {name} (qn: {qn})"
 
-# (H) Definition processor logs
 DEF_PARSING_AST = "Parsing and Caching AST for {language}: {path}"
 DEF_UNSUPPORTED_LANGUAGE = "Unsupported language '{language}' for {path}"
 DEF_NO_PARSER = "No parser available for {language}"
@@ -36,7 +30,6 @@ DEF_PARSE_FAILED = "Failed to parse or ingest {path}: {error}"
 DEF_PARSING_DEPENDENCY = "  Parsing dependency file: {path}"
 DEF_FOUND_DEPENDENCY = "    Found dependency: {name} (spec: {spec})"
 
-# (H) Semantic/embedding logs
 SEMANTIC_NOT_AVAILABLE = (
     "Semantic search dependencies not available, skipping embedding generation"
 )
@@ -51,10 +44,8 @@ EMBEDDING_GENERATION_FAILED = "Failed to generate semantic embeddings: {error}"
 EMBEDDING_STORE_FAILED = "Failed to store embedding for {name}: {error}"
 EMBEDDING_SEARCH_FAILED = "Failed to search embeddings: {error}"
 
-# (H) Image logs
 IMAGE_COPIED = "Copied image to temporary path: {path}"
 
-# (H) Protobuf service logs
 PROTOBUF_INIT = "ProtobufFileIngestor initialized to write to: {path}"
 PROTOBUF_NO_MESSAGE_CLASS = (
     "No Protobuf message class found for label '{label}'. Skipping node."
@@ -71,7 +62,6 @@ PROTOBUF_INVALID_REL = (
 PROTOBUF_FLUSH_SUCCESS = "Successfully flushed {nodes} unique nodes and {rels} unique relationships to {path}"
 PROTOBUF_FLUSHING = "Flushing data to {path}..."
 
-# (H) Parser loader logs
 BUILDING_BINDINGS = "Building Python bindings for {lang}..."
 BUILD_FAILED = "Failed to build {lang} bindings: stdout={stdout}, stderr={stderr}"
 BUILD_SUCCESS = "Successfully built {lang} bindings"
@@ -89,13 +79,11 @@ GRAMMAR_LOADED = "Successfully loaded {lang} grammar."
 GRAMMAR_LOAD_FAILED = "Failed to load {lang} grammar: {error}"
 INITIALIZED_PARSERS = "Initialized parsers for: {languages}"
 
-# (H) Ignore pattern logs
 CGRIGNORE_LOADED = (
     "Loaded {exclude_count} exclude and {unignore_count} unignore patterns from {path}"
 )
 CGRIGNORE_READ_FAILED = "Failed to read {path}: {error}"
 
-# (H) File watcher logs
 WATCHER_ACTIVE = "File watcher is now active."
 WATCHER_SKIP_NO_QUERY = "Ingestor does not support querying, skipping real-time update."
 CHANGE_DETECTED = "Change detected: {event_type} on {path}. Updating graph."
@@ -107,7 +95,6 @@ INITIAL_SCAN_DONE = "Initial scan complete. Starting real-time watcher."
 WATCHING = "Watching for changes in: {path}"
 LOGGER_CONFIGURED = "Logger configured for Real-Time Updater."
 
-# (H) Build logs
 BUILD_BINARY = "Building binary: {name}"
 BUILD_PROGRESS = "This may take a few minutes..."
 BUILD_READY = "Binary is ready for distribution!"
@@ -116,13 +103,11 @@ BINARY_SIZE = "Size: {size:.1f} MB"
 BUILD_STDOUT = "STDOUT: {stdout}"
 BUILD_STDERR = "STDERR: {stderr}"
 
-# (H) No-docs check logs
 NO_DOCS_VIOLATIONS_FOUND = (
     "No-docs violations found (module docstrings or inline comments):"
 )
 NO_DOCS_ERROR = "  {error}"
 
-# (H) Graph summary logs
 GRAPH_SUMMARY = "Graph Summary:"
 GRAPH_TOTAL_NODES = "   Total nodes: {count:,}"
 GRAPH_TOTAL_RELS = "   Total relationships: {count:,}"
@@ -140,19 +125,16 @@ GRAPH_ANALYSIS_COMPLETE = "Analysis complete!"
 GRAPH_ANALYSIS_ERROR = "Error analyzing graph: {error}"
 GRAPH_FILE_NOT_FOUND = "Graph file not found: {path}"
 
-# (H) FQN logs
 FQN_RESOLVE_FAILED = "Failed to resolve FQN for node at {path}: {error}"
 FQN_FIND_FAILED = "Failed to find function by FQN {fqn} in {path}: {error}"
 FQN_EXTRACT_FAILED = "Failed to extract function FQNs from {path}: {error}"
 
-# (H) Source extraction logs
 SOURCE_FILE_NOT_FOUND = "Source file not found: {path}"
 SOURCE_INVALID_RANGE = "Invalid line range: {start}-{end}"
 SOURCE_RANGE_EXCEEDS = "Line range {start}-{end} exceeds file length {length} in {path}"
 SOURCE_EXTRACT_FAILED = "Failed to extract source from {path}: {error}"
 SOURCE_AST_FAILED = "AST extraction failed for {name}: {error}"
 
-# (H) Memgraph logs
 MG_CONNECTING = "Connecting to Memgraph at {host}:{port}..."
 MG_CONNECTED = "Successfully connected to Memgraph."
 MG_EXCEPTION = "An exception occurred: {error}. Flushing remaining items..."
@@ -194,12 +176,10 @@ MG_WRITE_QUERY = "Executing write query: {query} with params: {params}"
 MG_EXPORTING = "Exporting graph data..."
 MG_EXPORTED = "Exported {nodes} nodes and {rels} relationships"
 
-# (H) LLM/Cypher logs
 CYPHER_GENERATING = "  [CypherGenerator] Generating query for: '{query}'"
 CYPHER_GENERATED = "  [CypherGenerator] Generated Cypher: {query}"
 CYPHER_ERROR = "  [CypherGenerator] Error: {error}"
 
-# (H) Tool file logs
 TOOL_FILE_READ = "[FileReader] Attempting to read file: {path}"
 TOOL_FILE_READ_SUCCESS = "[FileReader] Successfully read text from {path}"
 TOOL_FILE_BINARY = "[FileReader] {message}"
@@ -226,13 +206,10 @@ TOOL_SHELL_ALREADY_TERMINATED = (
 TOOL_SHELL_ERROR = "An error occurred while executing command: {error}"
 TOOL_DOC_ANALYZE = "[DocumentAnalyzer] Analyzing '{path}' with question: '{question}'"
 
-# (H) Shell timing log
 SHELL_TIMING = "'{func}' executed in {time:.2f}ms"
 
-# (H) Generic function timing log
 FUNC_TIMING = "{func} completed in {time:.2f}ms"
 
-# (H) File editor logs
 EDITOR_NO_PARSER = "No parser available for {path}"
 EDITOR_NO_LANG_CONFIG = "No language config found for extension {ext}"
 EDITOR_FUNC_NOT_FOUND_AT_LINE = "No function '{name}' found at line {line}"
@@ -262,11 +239,9 @@ EDITOR_NO_CHANGES_IDENTICAL = (
 EDITOR_SURGICAL_FAILED = "Surgical patches failed to apply cleanly"
 EDITOR_SURGICAL_ERROR = "Error during surgical block replacement: {error}"
 
-# (H) Directory lister logs
 DIR_LISTING = "Listing contents of directory: {path}"
 DIR_LIST_ERROR = "Error listing directory {path}: {error}"
 
-# (H) Semantic search logs
 SEMANTIC_NO_MATCH = "No semantic matches found for query: {query}"
 SEMANTIC_FOUND = "Found {count} semantic matches for: {query}"
 SEMANTIC_FAILED = "Semantic search failed for query '{query}': {error}"
@@ -276,7 +251,6 @@ SEMANTIC_SOURCE_FAILED = "Failed to get source code for node {id}: {error}"
 SEMANTIC_TOOL_SEARCH = "[Tool:SemanticSearch] Searching for: '{query}'"
 SEMANTIC_TOOL_SOURCE = "[Tool:GetFunctionSource] Retrieving source for node ID: {id}"
 
-# (H) Document analyzer logs
 DOC_COPIED = "Copied external file to: {path}"
 DOC_SUCCESS = "Successfully received analysis for '{path}'."
 DOC_NO_TEXT = "No text found in response: {response}"
@@ -285,34 +259,43 @@ DOC_FAILED = "Failed to analyze document '{path}': {error}"
 DOC_RESULT = "[analyze_document] Result type: {type}, content: {preview}..."
 DOC_EXCEPTION = "[analyze_document] Exception during analysis: {error}"
 
-# (H) Code retrieval logs
 CODE_RETRIEVER_INIT = "CodeRetriever initialized with root: {root}"
 CODE_RETRIEVER_SEARCH = "[CodeRetriever] Searching for: {name}"
 CODE_RETRIEVER_ERROR = "[CodeRetriever] Error: {error}"
 CODE_TOOL_RETRIEVE = "[Tool:GetCode] Retrieving code for: {name}"
 
-# (H) Tool init logs
 FILE_EDITOR_INIT = "FileEditor initialized with root: {root}"
 FILE_READER_INIT = "FileReader initialized with root: {root}"
 SHELL_COMMANDER_INIT = "ShellCommander initialized with root: {root}"
 DOC_ANALYZER_INIT = "DocumentAnalyzer initialized with root: {root}"
 
-# (H) Tool error logs
 FILE_EDITOR_WARN = "[FileEditor] {msg}"
 FILE_EDITOR_ERR = "[FileEditor] {msg}"
 FILE_EDITOR_ERR_EDIT = "[FileEditor] Error editing file {path}: {error}"
 FILE_READER_ERR = "Error reading file {path}: {error}"
 DOC_ANALYZER_API_ERR = "[DocumentAnalyzer] API validation error: {error}"
 
-# (H) File writer logs
 FILE_WRITER_INIT = "FileWriter initialized with root: {root}"
 FILE_WRITER_CREATE = "[FileWriter] Creating file: {path}"
 FILE_WRITER_SUCCESS = "[FileWriter] Successfully wrote {chars} characters to {path}"
 
-# (H) Error logs (used with logger.error/warning)
 UNEXPECTED = "An unexpected error occurred: {error}"
 EXPORT_ERROR = "Export error: {error}"
 INDEXING_FAILED = "Indexing failed"
+SCAN_LOG_FILE_CONFIGURED = "Scan log file: {path}"
+SCAN_FILE_FILTER_ACTIVE = "File filter active: {count} file(s) targeted"
+SCAN_REGISTRY_PRELOADED = "Function registry preloaded: {count} entries from graph"
+SCAN_REGISTRY_PRELOAD_NO_QUERY = (
+    "Ingestor does not support queries — registry preload skipped"
+)
+SCAN_DISCOVERY_GIT = "File discovery: using git ls-files"
+SCAN_DISCOVERY_RGLOB = "File discovery: using rglob (non-git repo)"
+SCAN_DISCOVERED = "Discovered {count} files from repository"
+SCAN_EXTENSIONS = "File extensions: {extensions}"
+SCAN_FILTERED_EXCLUDE = "Filtered {count} files by exclude patterns"
+SCAN_FILTERED_NO_PARSER = "Skipped {count} files (no parser): {extensions}"
+SCAN_PARSE_FAILED = "Parse failed for {path}: {error}"
+SCAN_FUNNEL_SUMMARY = "Scan funnel: discovered={discovered}, code={code}, dependency={dependency}, filtered_exclude={exclude}, filtered_no_parser={no_parser}, failed={failed}"
 PATH_NOT_IN_QUESTION = (
     "Could not find original path in question for replacement: {path}"
 )
@@ -320,7 +303,18 @@ IMAGE_NOT_FOUND = "Image path found, but does not exist: {path}"
 IMAGE_COPY_FAILED = "Failed to copy image to temporary directory: {error}"
 FILE_OUTSIDE_ROOT = "Security risk: Attempted to {action} file outside of project root."
 
-# (H) Call processor logs
+CALL_METRICS_SUMMARY = (
+    "Call processing complete: {files} files, {nodes} call nodes found"
+)
+CALL_METRICS_RESOLUTION = (
+    "  Resolved: {resolved} | Unresolved: {unresolved} | Errored: {errored}"
+)
+CALL_METRICS_STRATEGIES = "  Resolution strategies: {strategies}"
+CALL_METRICS_ZERO_CALLS = "  Files with zero resolved calls: {count}"
+CALL_METRICS_ERROR_RATE = (
+    "  Error rate: {files_with_errors}/{files_attempted} files had processing errors"
+)
+CALL_SKIPPED_PARAMETER = "  Calls skipped (parameter invocations): {count}"
 CALL_PROCESSING_FILE = "Processing calls in cached AST for: {path}"
 CALL_PROCESSING_FAILED = "Failed to process calls in {path}: {error}"
 CALL_FOUND_NODES = "Found {count} call nodes in {language} for {caller}"
@@ -329,6 +323,9 @@ CALL_FOUND = (
 )
 CALL_NESTED_FOUND = "Found nested call from {caller} to {call_name} (resolved as {callee_type}:{callee_qn})"
 CALL_DIRECT_IMPORT = "Direct import resolved: {call_name} -> {qn}"
+CALL_REEXPORT_CHAIN = (
+    "Barrel re-export resolved: {call_name} -> {barrel_qn} -> {source_qn}"
+)
 CALL_TYPE_INFERRED = "Type-inferred object method resolved: {call_name} -> {method_qn} (via {obj}:{var_type})"
 CALL_TYPE_INFERRED_INHERITED = (
     "Type-inferred inherited object method resolved: {call_name} -> {method_qn} "
@@ -350,6 +347,13 @@ CALL_INSTANCE_INHERITED = "Instance-resolved inherited call: {call_name} -> {met
 CALL_WILDCARD = "Wildcard-resolved call: {call_name} -> {qn}"
 CALL_SAME_MODULE = "Same-module resolution: {call_name} -> {qn}"
 CALL_TRIE_FALLBACK = "Trie-based fallback resolution: {call_name} -> {qn}"
+CALL_TRIE_REJECTED = "Trie fallback rejected: {call_name} -> {qn} (common_prefix={common_prefix} < {threshold})"
+CALL_TRIE_ALL_REJECTED = (
+    "Trie fallback: all {count} candidates rejected for {call_name}"
+)
+CALL_HOSTING_FUNCTION_ATTRIBUTED = (
+    "Attributed function refs from {call_name} to hosting function {hosting_qn}"
+)
 CALL_UNRESOLVED = "Could not resolve call: {call_name}"
 CALL_CHAINED = (
     "Resolved chained call: {call_name} -> {method_qn} (via {obj_expr}:{obj_type})"
@@ -366,8 +370,53 @@ CALL_JAVA_RESOLVED = "Java method call resolved: {call_text} -> {method_qn}"
 CALL_UNEXPECTED_PARENT = (
     "Unexpected parent type for node {node}: {parent_type}. Skipping."
 )
+CALL_IMPORT_MAP_MISSING = "❌ No import map for module: {module_qn}"
+CALL_IMPORT_MAP_EMPTY = "⚠️  Empty import map for module: {module_qn}"
+CALL_IMPORT_MAP_CONTENTS = "Import map for {module_qn}: {import_keys}"
+CALL_REGISTRY_MISSING = "❌ Not in registry: {func_qn}"
+CALL_REGISTRY_MODULE_FUNCS = "Registry has {count} functions from module {module_qn}"
+CALL_REGISTRY_EXAMPLES = "Registry examples from {module_qn}: {examples}"
+CALL_FUNCTIONS_FAILED = "Failed to process function calls in {path}: {error}\n{trace}"
+CALL_CLASSES_FAILED = "Failed to process class calls in {path}: {error}\n{trace}"
+CALL_MODULE_LEVEL_FAILED = (
+    "Failed to process module-level calls in {path}: {error}\n{trace}"
+)
+CALL_FUNC_NODE_FAILED = (
+    "Failed to process {func_type} at line {line} in {module}: {error}\n{trace}"
+)
+CALL_CLASS_NODE_FAILED = (
+    "Failed to process class at line {line} in {module}: {error}\n{trace}"
+)
+CALL_METHOD_NODE_FAILED = (
+    "Failed to process method at line {line} in {class_qn}: {error}\n{trace}"
+)
+CALL_INGEST_NODE_FAILED = (
+    "Failed to ingest call at line {line} in {caller}: {error}\n{trace}"
+)
+CALL_TYPE_INFERENCE_FAILED = "Type inference failed for {caller}, continuing with empty type map: {error}\n{trace}"
+TSCONFIG_ENTRY_POINT_FOUND = "Entry point for {package}: {entry}"
+TSCONFIG_REFERENCE_RESOLVED = (
+    "Reference resolved: {ref_path} -> {package_name} (entry: {entry})"
+)
+TSCONFIG_REFERENCE_PATHS_BUILT = (
+    "Built {count} reference-derived path mappings from {tsconfig}"
+)
+TSCONFIG_MERGED_PATHS = (
+    "Merged {workspace} workspace + {reference} reference paths ({total} total)"
+)
+TSCONFIG_ROOT_REFS_FALLBACK = "Trying root tsconfig references for: {import_path}"
+TSCONFIG_ROOT_REFS_RESOLVED = (
+    "Root tsconfig references resolved {import_path} → {result}"
+)
+CALL_UNRESOLVED_DETAILS = (
+    "UNRESOLVED CALL: {call_name} in {caller_qn}\n"
+    "   Module: {module_qn}\n"
+    "   Has import map: {has_import_map}\n"
+    "   Import map size: {import_map_size}"
+)
+CALL_EXTERNAL_CREATED = "Created external function node: {qn} (package: {pkg})"
+CALL_EXTERNAL_RESOLVED = "Resolved external call: {caller} -> {external}"
 
-# (H) Dependency parser logs
 DEP_PARSE_ERROR_PYPROJECT = "Error parsing pyproject.toml {path}: {error}"
 DEP_PARSE_ERROR_REQUIREMENTS = "Error parsing requirements.txt {path}: {error}"
 DEP_PARSE_ERROR_PACKAGE_JSON = "Error parsing package.json {path}: {error}"
@@ -377,7 +426,6 @@ DEP_PARSE_ERROR_GEMFILE = "Error parsing Gemfile {path}: {error}"
 DEP_PARSE_ERROR_COMPOSER = "Error parsing composer.json {path}: {error}"
 DEP_PARSE_ERROR_CSPROJ = "Error parsing .csproj {path}: {error}"
 
-# (H) Import processor logs
 IMP_TOOL_NOT_AVAILABLE = "External tool '{tool}' not available for stdlib introspection"
 IMP_CACHE_LOADED = "Loaded stdlib cache from {path}"
 IMP_CACHE_LOAD_ERROR = "Could not load stdlib cache: {error}"
@@ -412,11 +460,9 @@ IMP_CPP_MODULE_IFACE = "C++20 module interface: {name}"
 IMP_CPP_PARTITION = "C++20 module partition import: {partition} -> {full}"
 IMP_GENERIC = "Generic import parsing for {language}: {node_type}"
 
-# (H) Structure processor logs
 STRUCT_IDENTIFIED_PACKAGE = "  Identified Package: {package_qn}"
 STRUCT_IDENTIFIED_FOLDER = "  Identified Folder: '{relative_root}'"
 
-# (H) Class ingest logs
 CLASS_CPP_MODULE_INTERFACE = "  Found C++ Module Interface: {qn}"
 CLASS_CPP_MODULE_IMPL = "  Found C++ Module Implementation: {qn}"
 CLASS_FOUND_INTERFACE = "  Found Interface: {name} (qn: {qn})"
@@ -435,7 +481,6 @@ CLASS_PASS_4 = "--- Pass 4: Processing Method Override Relationships ---"
 CLASS_METHOD_OVERRIDE = "Method override: {method_qn} OVERRIDES {parent_method_qn}"
 CLASS_CPP_INHERITANCE = "Found C++ inheritance: {parent_name} -> {parent_qn}"
 
-# (H) Java type inference logs
 JAVA_VAR_TYPE_MAP_BUILT = "Built Java variable type map with {count} entries"
 JAVA_VAR_TYPE_MAP_FAILED = "Failed to build Java variable type map: {error}"
 JAVA_PARAM = "Parameter: {name} -> {type}"
@@ -457,7 +502,6 @@ JAVA_INSTANCE_NOT_FOUND = "Instance method not found: {type}.{method}"
 JAVA_ENHANCED_FOR_VAR = "Enhanced for loop variable: {name} -> {type}"
 JAVA_ENHANCED_FOR_VAR_ALT = "Enhanced for loop variable (alt): {name} -> {type}"
 
-# (H) JS type inference logs
 JS_VAR_DECLARATOR_FOUND = "Found variable declarator: {var_name} in {module_qn}"
 JS_VAR_INFERRED = "Inferred JS variable: {var_name} -> {var_type}"
 JS_VAR_INFER_FAILED = "Could not infer type for variable: {var_name}"
@@ -484,14 +528,42 @@ JS_METHOD_RETURN_ERROR = (
     "Error inferring JS method return type for {method_call}: {error}"
 )
 
-# (H) Lua type inference logs
+JS_FOR_OF_VAR_INFERRED = "Inferred for-of loop variable: {var_name} -> {var_type}"
+JS_FOR_OF_ITERABLE_TYPE = "For-of loop iterable type: {iterable_type}"
+JS_FOR_OF_NO_ITERABLE = "Could not determine iterable type for for-of loop"
+JS_RETURN_TYPE_ANNOTATION = "Found return type annotation: {return_type}"
+JS_TYPE_ANNOTATION_FOUND = "Found type annotation: {annotation}"
+JS_GENERIC_TYPE_EXTRACTED = (
+    "Extracted element type from generic: {generic} -> {element}"
+)
+JS_ARRAY_TYPE_EXTRACTED = "Extracted element type from array: {array_type} -> {element}"
+JS_VAR_DECLARATOR_FAILED = (
+    "Failed to process variable declarator at line {line}, skipping"
+)
+
+TYPE_RESOLVER_INIT = (
+    "TypeScript type resolver: {status} (tsconfig: {path}, files in program: {count})"
+)
+TYPE_RESOLVER_UNAVAILABLE = (
+    "TypeScript type resolver unavailable: {reason}. Falling back to Python inference"
+)
+TYPE_RESOLVER_QUERY = "Type resolver: {path} -> {func_count} functions with types"
+TYPE_RESOLVER_PARAM_RESOLVED = (
+    "TS type resolver: {param_name}: {type_name} -> {resolved_qn}"
+)
+TYPE_RESOLVER_PARAM_FILTERED = (
+    "TS type resolver: filtered complex/primitive type: {type_name}"
+)
+TYPE_RESOLVER_CLEANUP = "TypeScript type resolver subprocess cleaned up"
+TYPE_RESOLVER_RESTART = "TypeScript type resolver subprocess restarting"
+TYPE_RESOLVER_ERROR = "TypeScript type resolver error: {error}"
+
 LUA_VAR_TYPE_MAP_BUILT = "Built Lua variable type map with {count} variables"
 LUA_VAR_INFERRED = "Inferred Lua variable: {var_name} -> {var_type}"
 LUA_TYPE_INFERENCE_RETURN = (
     "Lua type inference: {class_name}:{method_name}() returns {class_qn}"
 )
 
-# (H) Python type inference logs
 PY_BUILD_VAR_MAP_FAILED = "Failed to build local variable type map: {error}"
 PY_PARAM_TYPE_INFERRED = "Inferred parameter type: {param} -> {type}"
 PY_TYPE_INFER_ATTEMPT = (
@@ -526,7 +598,6 @@ PY_FOUND_METHOD = "      Found method: {name}"
 PY_FOUND_INIT_METHOD = "      Found __init__ method!"
 PY_INIT_NOT_FOUND = "  No __init__ method found in class body"
 
-# (H) JS/TS ingest logs
 JS_PROTOTYPE_INHERITANCE = "Prototype inheritance: {child_qn} INHERITS {parent_qn}"
 JS_PROTOTYPE_INHERITANCE_FAILED = "Failed to detect prototype inheritance: {error}"
 JS_PROTOTYPE_METHOD_FOUND = "  Found Prototype Method: {method_name} (qn: {method_qn})"
@@ -551,7 +622,9 @@ JS_ASSIGNMENT_ARROW_DETECT_FAILED = (
     "Failed to detect assignment arrow functions: {error}"
 )
 
-# (H) JS/TS module system logs
+ANON_FUNC_CREATED = "AnonymousFunction created: {qn} (context: {context})"
+ANON_FUNC_HASH_COLLISION = "Hash collision for {context}: {hash} → using {hash}_1"
+
 JS_COMMONJS_DESTRUCTURE_FAILED = (
     "Failed to process CommonJS destructuring pattern: {error}"
 )
@@ -567,8 +640,8 @@ JS_COMMONJS_EXPORTS_QUERY_FAILED = "Failed to process CommonJS exports query: {e
 JS_COMMONJS_EXPORTS_DETECT_FAILED = "Failed to detect CommonJS exports: {error}"
 JS_ES6_EXPORTS_QUERY_FAILED = "Failed to process ES6 exports query: {error}"
 JS_ES6_EXPORTS_DETECT_FAILED = "Failed to detect ES6 exports: {error}"
+JS_ES6_EXPORT_BLOCK_FOUND = "ES6 block export: {name} in {module}"
 
-# (H) MCP tool logs
 MCP_INDEXING_REPO = "[MCP] Indexing repository at: {path}"
 MCP_CLEARING_DB = "[MCP] Clearing existing database to avoid conflicts..."
 MCP_DB_CLEARED = "[MCP] Database cleared. Starting fresh indexing..."
@@ -594,7 +667,6 @@ MCP_ERROR_WRITE = "[MCP] Error writing file: {error}"
 MCP_LIST_DIR = "[MCP] list_directory: {path}"
 MCP_ERROR_LIST_DIR = "[MCP] Error listing directory: {error}"
 
-# (H) MCP server logs
 MCP_SERVER_INFERRED_ROOT = "[GraphCode MCP] Using inferred project root: {path}"
 MCP_SERVER_NO_ROOT = (
     "[GraphCode MCP] No project root configured, using current directory: {path}"
@@ -613,11 +685,9 @@ MCP_SERVER_CONNECTED = "[GraphCode MCP] Connected to Memgraph at {host}:{port}"
 MCP_SERVER_FATAL_ERROR = "[GraphCode MCP] Fatal error: {error}"
 MCP_SERVER_SHUTDOWN = "[GraphCode MCP] Shutting down server..."
 
-# (H) Exclude prompt logs
 EXCLUDE_INVALID_INDEX = "Invalid index: {index} (out of range)"
 EXCLUDE_INVALID_INPUT = "Invalid input: '{input}' (expected number)"
 
-# (H) Model switching logs
 MODEL_SWITCHED = "Model switched to: {model}"
 MODEL_SWITCH_FAILED = "Failed to switch model: {error}"
 MODEL_CURRENT = "Current model: {model}"

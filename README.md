@@ -53,9 +53,12 @@ An accurate Retrieval-Augmented Generation (RAG) system that analyzes multi-lang
 | Rust | Fully Supported | .rs | ✓ | ✓ | ✓ | ✓ | impl blocks, associated functions |
 | TypeScript | Fully Supported | .ts, .tsx | ✓ | ✓ | ✓ | - | Interfaces, type aliases, enums, namespaces, ES6/CommonJS modules |
 | C# | In Development | .cs | ✓ | ✓ | ✓ | - | Classes, interfaces, generics (planned) |
+| CSS | In Development | .css | - | - | ✓ | - | Selectors, rules, @-rules |
 | Go | In Development | .go | ✓ | ✓ | ✓ | - | Methods, type declarations |
+| HTML | In Development | .html, .htm | - | - | ✓ | - | Elements, attributes, IDs, classes |
 | PHP | In Development | .php | ✓ | ✓ | ✓ | - | Classes, functions, namespaces |
 | Scala | In Development | .scala, .sc | ✓ | ✓ | ✓ | - | Case classes, objects |
+| SCSS | In Development | .scss, .sass | - | - | ✓ | - | Variables, mixins, nested rules, @use/@import |
 <!-- /SECTION:supported_languages -->
 - **🌳 Tree-sitter Parsing**: Uses Tree-sitter for robust, language-agnostic AST parsing
 - **📊 Knowledge Graph Storage**: Uses Memgraph to store codebase structure as an interconnected graph
@@ -85,29 +88,32 @@ The system consists of two main components:
 - Docker & Docker Compose (for Memgraph)
 - **cmake** (required for building pymgclient dependency)
 - **ripgrep** (`rg`) (required for shell command text searching)
+- **Node.js** (recommended for TypeScript/JavaScript projects - enables accurate module resolution using the native TypeScript compiler. Without Node.js, the system falls back to Python-based resolution)
 - **For cloud models**: Google Gemini API key
 - **For local models**: Ollama installed and running
 - `uv` package manager
 
-### Installing cmake and ripgrep
+### Installing cmake, ripgrep, and Node.js
 
 On macOS:
 ```bash
-brew install cmake ripgrep
+brew install cmake ripgrep node
 ```
 
 On Linux (Ubuntu/Debian):
 ```bash
 sudo apt-get update
-sudo apt-get install cmake ripgrep
+sudo apt-get install cmake ripgrep nodejs npm
 ```
 
 On Linux (CentOS/RHEL):
 ```bash
-sudo yum install cmake
+sudo yum install cmake nodejs npm
 sudo dnf install ripgrep
 # Note: ripgrep may need to be installed from EPEL or via cargo
 ```
+
+**Note on Node.js**: Node.js is optional but strongly recommended for TypeScript/JavaScript codebases. When available, Graph-Code uses Node.js's native module resolution (`require.resolve`) to accurately resolve import paths in monorepo setups and complex TypeScript configurations. If Node.js is not installed, the system gracefully falls back to Python-based resolution with workspace package support.
 
 ## 🛠️ Installation
 
@@ -664,7 +670,10 @@ The knowledge graph uses the following node types and relationships:
 | Method | OVERRIDES | Method |
 | ModuleImplementation | IMPLEMENTS | ModuleInterface |
 | Project | DEPENDS_ON_EXTERNAL | ExternalPackage |
-| Function, Method, AnonymousFunction | CALLS | Function, Method |
+| Function, Method, Module | CALLS | Function, Method |
+| Module | DEFINES | AnonymousFunction |
+| Function, Method | DEFINES | AnonymousFunction |
+| AnonymousFunction | CALLS | Function, Method |
 <!-- /SECTION:relationship_schemas -->
 
 ## 🔧 Configuration

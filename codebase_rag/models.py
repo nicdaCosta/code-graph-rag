@@ -76,6 +76,7 @@ class LanguageSpec:
 class Dependency:
     name: str
     spec: str
+    category: str = field(default="", compare=False)
     properties: dict[str, str] = field(default_factory=dict)
 
 
@@ -92,3 +93,39 @@ class ToolMetadata:
     input_schema: MCPInputSchema
     handler: MCPHandlerType
     returns_json: bool
+
+
+@dataclass
+class CallProcessingMetrics:
+    files_attempted: int = 0
+    files_with_errors: int = 0
+    total_call_nodes: int = 0
+    calls_resolved: int = 0
+    calls_unresolved: int = 0
+    calls_errored: int = 0
+    calls_skipped_parameter: int = 0
+    calls_resolved_external: int = 0
+    external_functions_created: int = 0
+    resolution_by_strategy: dict[str, int] = field(default_factory=dict)
+    files_with_zero_calls: list[str] = field(default_factory=list)
+
+
+@dataclass
+class TypeResolutionMetrics:
+    files_queried: int = 0
+    functions_with_types: int = 0
+    parameters_resolved: int = 0
+    types_filtered_complex: int = 0
+    files_not_in_program: int = 0
+
+
+@dataclass
+class ScanFunnelMetrics:
+    files_discovered: int = 0
+    files_filtered_exclude: int = 0
+    files_filtered_no_parser: int = 0
+    files_parsed_as_code: int = 0
+    files_parsed_as_dependency: int = 0
+    files_parse_failed: int = 0
+    extensions_skipped: dict[str, int] = field(default_factory=dict)
+    index_files_normalized: int = 0
