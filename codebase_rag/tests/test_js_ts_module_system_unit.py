@@ -86,7 +86,9 @@ class TestProcessCommonjsImport:
     ) -> None:
         mock_import_processor._resolve_js_module_path.return_value = "fs"
 
-        mixin._process_commonjs_import("readFile", "fs", "my_module")
+        mixin._process_commonjs_import(
+            "readFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
 
         mock_ingestor.ensure_node_batch.assert_called_once()
         call_args = mock_ingestor.ensure_node_batch.call_args
@@ -105,8 +107,12 @@ class TestProcessCommonjsImport:
     ) -> None:
         mock_import_processor._resolve_js_module_path.return_value = "fs"
 
-        mixin._process_commonjs_import("readFile", "fs", "my_module")
-        mixin._process_commonjs_import("writeFile", "fs", "my_module")
+        mixin._process_commonjs_import(
+            "readFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
+        mixin._process_commonjs_import(
+            "writeFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
 
         assert mock_ingestor.ensure_node_batch.call_count == 1
 
@@ -120,7 +126,9 @@ class TestProcessCommonjsImport:
             "Resolution failed"
         )
 
-        mixin._process_commonjs_import("readFile", "fs", "my_module")
+        mixin._process_commonjs_import(
+            "readFile", "fs", "my_module", cs.SupportedLanguage.TS
+        )
 
         mock_ingestor.ensure_node_batch.assert_not_called()
 
@@ -157,7 +165,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_called_once()
 
@@ -198,7 +208,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_called_once()
 
@@ -217,7 +229,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -240,7 +254,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -270,7 +286,9 @@ class TestProcessVariableDeclaratorForCommonjs:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -361,7 +379,9 @@ class TestEdgeCases:
             fields={cs.FIELD_VALUE: call_expr},
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -376,7 +396,9 @@ class TestEdgeCases:
             fields={cs.FIELD_NAME: object_pattern},
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -395,7 +417,9 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -418,7 +442,9 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -451,7 +477,9 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 
@@ -492,7 +520,9 @@ class TestEdgeCases:
             },
         )
 
-        mixin._process_variable_declarator_for_commonjs(declarator, "test_module")
+        mixin._process_variable_declarator_for_commonjs(
+            declarator, "test_module", cs.SupportedLanguage.TS
+        )
 
         mock_import_processor._resolve_js_module_path.assert_not_called()
 

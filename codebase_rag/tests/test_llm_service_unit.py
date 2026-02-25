@@ -58,31 +58,27 @@ RETURN n.name"""
         assert result.endswith(";")
         assert "MATCH" in result
 
-    def test_handles_response_with_explanatory_text(self) -> None:
-        """Test cleaning responses where LLM adds explanatory text."""
-        query = """MATCH (f:Function) WHERE f.name = "getAllValidItineraryIds"
-RETURN f.qualified_name
-Alternatively, you could also use MATCH (f:Function)-[:CALLS]->(target:Function)"""
+    def test_strips_bold_markdown_prefix(self) -> None:
+        result = _clean_cypher_response("**Cypher Query:** MATCH (n) RETURN n")
+        assert result.startswith("MATCH")
+        assert "**" not in result
 
+    def test_strips_cypher_prefix_case_insensitive(self) -> None:
+        result = _clean_cypher_response("Cypher MATCH (n) RETURN n")
+        assert result.startswith("MATCH")
+
+    def test_extracts_from_unlabeled_code_block(self) -> None:
+        query = "```\nMATCH (n) RETURN n\n```"
         result = _clean_cypher_response(query)
+        assert result == "MATCH (n) RETURN n;"
 
-        assert "Alternatively" not in result
-        assert "MATCH (f:Function) WHERE f.name" in result
-        assert "RETURN f.qualified_name" in result
+    def test_extracts_from_code_block_with_surrounding_text(self) -> None:
+        query = "Here is the query:\n```cypher\nMATCH (n) RETURN n;\n```\nThis finds all nodes."
+        result = _clean_cypher_response(query)
+        assert result.startswith("MATCH")
         assert result.endswith(";")
-
-    def test_handles_multiline_query_with_note(self) -> None:
-        """Test cleaning multiline queries with explanatory notes at the end."""
-        query = """MATCH (f:Function)
-WHERE f.name = "test"
-RETURN f.name, f.qualified_name
-Note: This query finds all functions named 'test'."""
-
-        result = _clean_cypher_response(query)
-
-        assert "Note:" not in result
-        assert "MATCH (f:Function)" in result
-        assert "RETURN f.name, f.qualified_name" in result
+        assert "```" not in result
+        assert "Here is" not in result
 
 
 class TestCypherGenerator:

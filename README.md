@@ -2,7 +2,7 @@
   <picture>
     <source srcset="assets/logo-dark-any.png" media="(prefers-color-scheme: dark)">
     <source srcset="assets/logo-light-any.png" media="(prefers-color-scheme: light)">
-    <img src="assets/logo-dark.png" alt="Graph-Code Logo" width="480">
+    <img src="assets/logo-dark-any.png" alt="Code-Graph-RAG Logo" width="480">
   </picture>
 
   <p>
@@ -18,19 +18,24 @@
   <a href="https://mseep.ai/app/vitali87-code-graph-rag">
     <img src="https://mseep.net/pr/vitali87-code-graph-rag-badge.png" alt="MseeP.ai Security Assessment" height="20" />
   </a>
+  <a href="https://code-graph-rag.com">
+    <img src="https://img.shields.io/badge/Enterprise-Support%20%26%20Services-6366f1" alt="Enterprise Support" />
+  </a>
 </p>
 </div>
 
-# Graph-Code: A Graph-Based RAG System for Any Codebases
+# Code-Graph-RAG: A Graph-Based RAG System for Any Codebases
 
 An accurate Retrieval-Augmented Generation (RAG) system that analyzes multi-language codebases using Tree-sitter, builds comprehensive knowledge graphs, and enables natural language querying of codebase structure and relationships as well as editing capabilities.
 
 
-![demo](./assets/demo.gif)
+<p align="center">
+  <img src="./assets/demo.gif" alt="demo">
+</p>
 
 ## Latest News 🔥
 
-- **[NEW]** **MCP Server Integration**: Graph-Code now works as an MCP server with Claude Code! Query and edit your codebase using natural language directly from Claude Code. [Setup Guide](docs/claude-code-setup.md)
+- **[NEW]** **MCP Server Integration**: Code-Graph-RAG now works as an MCP server with Claude Code! Query and edit your codebase using natural language directly from Claude Code. [Setup Guide](docs/claude-code-setup.md)
 - [2025/10/21] **Semantic Code Search**: Added intent-based code search using UniXcoder embeddings. Find functions by describing what they do (e.g., "error handling functions", "authentication code") rather than by exact names.
 
 ## 🚀 Features
@@ -296,11 +301,12 @@ Use the Makefile for common development tasks:
 | `make format` | Run ruff format |
 | `make typecheck` | Run type checking with ty |
 | `make check` | Run all checks: lint, typecheck, test |
+| `make pre-commit` | Run all pre-commit checks locally (comprehensive test before commit) |
 <!-- /SECTION:makefile_commands -->
 
 ## 🎯 Usage
 
-The Graph-Code system offers four main modes of operation:
+The Code-Graph-RAG system offers four main modes of operation:
 1. **Parse & Ingest**: Build knowledge graph from your codebase
 2. **Interactive Query**: Ask questions about your code in natural language
 3. **Export & Analyze**: Export graph data for programmatic analysis
@@ -560,17 +566,17 @@ The agent will incorporate the guidance from your reference documents when sugge
 
 ## 🔌 MCP Server (Claude Code Integration)
 
-Graph-Code can run as an MCP (Model Context Protocol) server, enabling seamless integration with Claude Code and other MCP clients.
+Code-Graph-RAG can run as an MCP (Model Context Protocol) server, enabling seamless integration with Claude Code and other MCP clients.
 
 ### Quick Setup
 
 ```bash
-claude mcp add --transport stdio graph-code \
+claude mcp add --transport stdio code-graph-rag \
   --env TARGET_REPO_PATH=/absolute/path/to/your/project \
   --env CYPHER_PROVIDER=openai \
   --env CYPHER_MODEL=gpt-4 \
   --env CYPHER_API_KEY=your-api-key \
-  -- uv run --directory /path/to/code-graph-rag graph-code mcp-server
+  -- uv run --directory /path/to/code-graph-rag code-graph-rag mcp-server
 ```
 
 ### Available Tools
@@ -652,8 +658,9 @@ The knowledge graph uses the following node types and relationships:
 | Project, Package, Folder | CONTAINS_FOLDER | Folder |
 | Project, Package, Folder | CONTAINS_FILE | File |
 | Project, Package, Folder | CONTAINS_MODULE | Module |
-| Module | DEFINES | Class, Function |
+| Module | DEFINES | Class, Function, AnonymousFunction |
 | Class | DEFINES_METHOD | Method |
+| Function, Method | DEFINES | AnonymousFunction |
 | Module | IMPORTS | Module |
 | Module | EXPORTS | Class, Function |
 | Module | EXPORTS_MODULE | ModuleInterface |
@@ -743,6 +750,7 @@ my_build_output
 - **click**: Composable command line interface toolkit
 - **protobuf**
 - **defusedxml**: XML bomb protection for Python stdlib modules
+- **huggingface-hub**: Client library to download and publish models, datasets and other repos on the huggingface.co hub
 <!-- /SECTION:dependencies -->
 
 ## 🤖 Agentic Workflow & Tools
@@ -783,7 +791,7 @@ The agent uses AST-based function targeting with Tree-sitter for precise code mo
 
 ### Adding New Languages
 
-Graph-Code makes it easy to add support for any language that has a Tree-sitter grammar. The system automatically handles grammar compilation and integration.
+Code-Graph-RAG makes it easy to add support for any language that has a Tree-sitter grammar. The system automatically handles grammar compilation and integration.
 
 > **⚠️ Recommendation**: While you can add languages yourself, we recommend waiting for official full support to ensure optimal parsing quality, comprehensive feature coverage, and robust integration. The languages marked as "In Development" above will receive dedicated optimization and testing.
 
@@ -924,6 +932,17 @@ For issues or questions:
 2. Verify Memgraph connection
 3. Ensure all environment variables are set
 4. Review the graph schema matches your expectations
+
+## 💼 Enterprise Services
+
+Code-Graph-RAG is open source and free to use. For organizations that need more, we offer **fully managed cloud-hosted solutions** and **on-premise deployments**:
+
+- **Cloud-Hosted Deployment** — Managed cloud infrastructure for both the graph database and AI agent connection. Zero infrastructure overhead — we handle scaling, updates, and availability so your team can focus on building.
+- **On-Premise & Air-Gapped Deployment** — Deploy Code-Graph-RAG entirely within your own environment, including air-gapped networks. Full data sovereignty for regulated industries and security-sensitive organizations.
+
+We also offer custom development, integration consulting, technical support contracts, and team training.
+
+**[View plans & pricing at code-graph-rag.com →](https://code-graph-rag.com/enterprise)**
 
 ## Star History
 

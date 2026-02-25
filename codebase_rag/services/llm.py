@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -26,74 +27,22 @@ def _create_provider_model(config: ModelConfig) -> Model:
 
 
 def _clean_cypher_response(response_text: str) -> str:
-    """Extract valid Cypher query from LLM response.
+    query = response_text.strip()
 
-    Handles responses where the LLM adds explanatory text after the query.
-    Extracts only the lines that are part of the Cypher query itself.
-    """
-    query = response_text.strip().replace(cs.CYPHER_BACKTICK, "")
-    if query.startswith(cs.CYPHER_PREFIX):
-        query = query[len(cs.CYPHER_PREFIX) :].strip()
+    code_block_match = re.search(
+        cs.CYPHER_CODE_BLOCK_PATTERN, query, re.DOTALL | re.IGNORECASE
+    )
+    if code_block_match:
+        query = code_block_match.group(1).strip()
+    else:
+        query = re.sub(cs.CYPHER_BOLD_MARKDOWN_PATTERN, "", query)
+        query = query.replace(cs.CYPHER_BACKTICK, "")
+        if query.lower().startswith(cs.CYPHER_PREFIX):
+            query = query[len(cs.CYPHER_PREFIX) :].strip()
 
-    lines = query.split("\n")
-    cypher_lines = []
-
-    cypher_keywords = {
-        "MATCH",
-        "WHERE",
-        "RETURN",
-        "WITH",
-        "OPTIONAL",
-        "UNWIND",
-        "CREATE",
-        "MERGE",
-        "DELETE",
-        "SET",
-        "REMOVE",
-        "ORDER",
-        "SKIP",
-        "LIMIT",
-        "UNION",
-    }
-
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        first_word = stripped.split()[0].upper() if stripped.split() else ""
-
-        if any(
-            stripped.startswith(word)
-            for word in [
-                "Alternatively",
-                "Note:",
-                "Note that",
-                "This query",
-                "You can also",
-                "Explanation:",
-                "This will",
-            ]
-        ):
-            break
-
-        if (
-            first_word in cypher_keywords
-            or stripped.startswith("(")
-            or stripped.startswith("AND ")
-            or stripped.startswith("OR ")
-            or cypher_lines
-        ):
-            cypher_lines.append(stripped)
-        elif not cypher_lines:
-            cypher_lines.append(stripped)
-
-    result = "\n".join(cypher_lines)
-
-    if not result.endswith(cs.CYPHER_SEMICOLON):
-        result += cs.CYPHER_SEMICOLON
-
-    return result
+    if not query.endswith(cs.CYPHER_SEMICOLON):
+        query += cs.CYPHER_SEMICOLON
+    return query
 
 
 class CypherGenerator:

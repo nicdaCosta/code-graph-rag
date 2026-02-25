@@ -150,6 +150,8 @@ MG_DELETING_PROJECT = "--- Deleting project: {project_name} ---"
 MG_PROJECT_DELETED = "--- Project {project_name} deleted. ---"
 MG_ENSURING_CONSTRAINTS = "Ensuring constraints..."
 MG_CONSTRAINTS_DONE = "Constraints checked/created."
+MG_ENSURING_INDEXES = "Ensuring label-property indexes for MERGE performance..."
+MG_INDEXES_DONE = "Indexes checked/created."
 MG_NODE_BUFFER_FLUSH = (
     "Node buffer reached batch size ({size}). Performing incremental flush."
 )
@@ -689,3 +691,8 @@ EXCLUDE_INVALID_INPUT = "Invalid input: '{input}' (expected number)"
 MODEL_SWITCHED = "Model switched to: {model}"
 MODEL_SWITCH_FAILED = "Failed to switch model: {error}"
 MODEL_CURRENT = "Current model: {model}"
+
+# (H) Custom headers logs
+CUSTOM_HEADERS_EMPTY = (
+    "Empty custom headers string received, treating as no headers set"
+)

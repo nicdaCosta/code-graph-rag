@@ -82,15 +82,18 @@ type FunctionRegistry = dict[QualifiedName, NodeType]
 class FunctionRegistryTrieProtocol(Protocol):
     def __contains__(self, qualified_name: QualifiedName) -> bool: ...
     def __getitem__(self, qualified_name: QualifiedName) -> NodeType: ...
+
     def __setitem__(
         self, qualified_name: QualifiedName, func_type: NodeType
     ) -> None: ...
+
     def get(
         self, qualified_name: QualifiedName, default: NodeType | None = None
     ) -> NodeType | None: ...
     def keys(self) -> KeysView[QualifiedName]: ...
     def items(self) -> ItemsView[QualifiedName, NodeType]: ...
     def find_with_prefix(self, prefix: str) -> list[tuple[QualifiedName, NodeType]]: ...
+
     def find_ending_with(self, suffix: str) -> list[QualifiedName]: ...
     def register_external(
         self, qualified_name: QualifiedName, func_type: NodeType
@@ -99,6 +102,7 @@ class FunctionRegistryTrieProtocol(Protocol):
 
 class ASTCacheProtocol(Protocol):
     def __setitem__(self, key: Path, value: tuple[Node, SupportedLanguage]) -> None: ...
+
     def __getitem__(self, key: Path) -> tuple[Node, SupportedLanguage]: ...
     def __delitem__(self, key: Path) -> None: ...
     def __contains__(self, key: Path) -> bool: ...
@@ -577,12 +581,17 @@ RELATIONSHIP_SCHEMAS: tuple[RelationshipSchema, ...] = (
     RelationshipSchema(
         (NodeLabel.MODULE,),
         RelationshipType.DEFINES,
-        (NodeLabel.CLASS, NodeLabel.FUNCTION),
+        (NodeLabel.CLASS, NodeLabel.FUNCTION, NodeLabel.ANONYMOUS_FUNCTION),
     ),
     RelationshipSchema(
         (NodeLabel.CLASS,),
         RelationshipType.DEFINES_METHOD,
         (NodeLabel.METHOD,),
+    ),
+    RelationshipSchema(
+        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+        RelationshipType.DEFINES,
+        (NodeLabel.ANONYMOUS_FUNCTION,),
     ),
     RelationshipSchema(
         (NodeLabel.MODULE,),
