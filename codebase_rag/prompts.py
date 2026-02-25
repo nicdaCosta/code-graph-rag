@@ -1,13 +1,21 @@
 from typing import TYPE_CHECKING
 
 from .cypher_queries import (
+    CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE,
+    CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS,
+    CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE,
+    CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS,
     CYPHER_EXAMPLE_CLASS_METHODS,
+    CYPHER_EXAMPLE_CLASSES_IN_PATH,
     CYPHER_EXAMPLE_CONTENT_BY_PATH,
     CYPHER_EXAMPLE_DECORATED_FUNCTIONS,
     CYPHER_EXAMPLE_FILES_IN_FOLDER,
+    CYPHER_EXAMPLE_FIND_CALLERS,
     CYPHER_EXAMPLE_FIND_FILE,
+    CYPHER_EXAMPLE_FUNCTION_WITH_PATH,
     CYPHER_EXAMPLE_KEYWORD_SEARCH,
     CYPHER_EXAMPLE_LIMIT_ONE,
+    CYPHER_EXAMPLE_PARENT_FUNCTIONS,
     CYPHER_EXAMPLE_PYTHON_FILES,
     CYPHER_EXAMPLE_README,
     CYPHER_EXAMPLE_TASKS,
@@ -38,9 +46,95 @@ CYPHER_QUERY_RULES = """**2. Critical Cypher Query Rules**
 
 - **ALWAYS Return Specific Properties with Aliases**: Do NOT return whole nodes (e.g., `RETURN n`). You MUST return specific properties with clear aliases (e.g., `RETURN n.name AS name`).
 - **Use `STARTS WITH` for Paths**: When matching paths, always use `STARTS WITH` for robustness (e.g., `WHERE n.path STARTS WITH 'workflows/src'`). Do not use `=`.
-- **Use `ENDS WITH` for qualified_name**: The `qualified_name` property contains full paths like `'Project.folder.subfolder.ClassName'`. When users mention a class, function, or method by its short name (e.g., "VatManager"), use `ENDS WITH` to match: `WHERE c.qualified_name ENDS WITH '.VatManager'`. Do NOT use `{name: 'VatManager'}` equality matching.
 - **Use `toLower()` for Searches**: For case-insensitive searching on string properties, use `toLower()`.
 - **Querying Lists**: To check if a list property (like `decorators`) contains an item, use the `ANY` or `IN` clause (e.g., `WHERE 'flow' IN n.decorators`)."""
+
+
+SCHEMA_SEMANTIC_NOTES = """**Schema Architecture Notes**
+
+**Language-Agnostic Graph Model:**
+This schema models codebases in any supported language (Python, JavaScript, TypeScript, Rust, Java, C++, Lua, Go, Scala, C#, PHP). The same node types and relationships apply regardless of language. For example, a Python `def`, a JavaScript `function`, a Rust `fn`, and a Java method are all represented as Function or Method nodes.
+
+**File vs Module (Parallel Hierarchies — CRITICAL):**
+- A `File` node represents a physical file on disk (unique by `path`, has `extension`).
+- A `Module` node represents the logical code unit parsed from that file (unique by `qualified_name`, also has `path`).
+- File and Module are SIBLING nodes under the same parent Folder. A Folder has `CONTAINS_FILE` to File AND `CONTAINS_MODULE` to Module.
+- IMPORTANT: There is NO direct relationship between File and Module. `(File)-[:CONTAINS_MODULE]->(Module)` does NOT exist. Only Folder, Package, or Project nodes have `CONTAINS_MODULE` edges.
+- Code symbols (Class, Function, Method) are defined by Module via `DEFINES`, NOT by File.
+- To get a file's path for a code symbol, use Module's `path` property directly — do NOT try to traverse from File to Module.
+
+**Getting a File Path for a Code Symbol:**
+- Function, Method, Class, Interface, Enum, Type, and Union nodes do NOT have a `path` property.
+- To find the file path for a code symbol, traverse through its Module: `(m:Module)-[:DEFINES]->(symbol)` then use `m.path`.
+- For methods, chain through Class: `(m:Module)-[:DEFINES]->(c:Class)-[:DEFINES_METHOD]->(method)` then use `m.path`.
+
+**Unique Identifiers by Node Type:**
+- `name` is the unique key for: Project, ExternalPackage.
+- `path` is the unique key for: File, Folder.
+- `qualified_name` is the unique key for all code symbols: Module, Package, Class, Function, Method, Interface, Enum, Type, Union, ModuleInterface, ModuleImplementation.
+
+**Property Availability:**
+- `path` exists on: File, Folder, Module, Package, ModuleInterface, ModuleImplementation.
+- `path` does NOT exist on: Function, Method, Class, AnonymousFunction, Interface, Enum, Type, Union.
+- `qualified_name` exists on all code symbols and Module/Package, but NOT on: File, Folder, Project.
+- `decorators` (list of strings) exists only on: Function, Method, Class.
+- `start_line` and `end_line` (integers) exist only on: AnonymousFunction.
+- `extension` exists only on: File.
+
+**Relationship Direction Rules:**
+- Container relationships (CONTAINS_*) flow from: Project, Package, or Folder.
+- DEFINES flows from: Module to Class or Function.
+- DEFINES_METHOD flows from: Class to Method.
+- CALLS flows between: Function, Method, or Module to Function or Method. Module-level code (top-level statements outside any function) generates CALLS edges directly from Module nodes.
+- IMPORTS flows from: Module to Module.
+- INHERITS flows from: subclass Class to superclass Class.
+- IMPLEMENTS flows from: Class to Interface.
+
+**AnonymousFunction Architecture:**
+- AnonymousFunction nodes represent inline arrow functions, callbacks, and JSX handlers (JavaScript/TypeScript only).
+- They are defined BY Function, Method, or Module using the `DEFINES` relationship.
+- They can call named functions/methods using the `CALLS` relationship.
+- AnonymousFunction nodes CANNOT be called by name (they do not appear as targets in CALLS relationships).
+- Properties: AnonymousFunction has `start_line`/`end_line` (NOT `decorators`). Function/Method have `decorators` (NOT line numbers).
+- Naming pattern: Context prefix (jsx_, hook_, map_, returned_, ternary_, arrow_) + 8-character hash.
+- Common queries:
+  - JSX handlers: `WHERE af.name STARTS WITH 'jsx_'`
+  - React hooks: `WHERE af.name STARTS WITH 'hook_useEffect_'`
+  - Array callbacks: `WHERE af.name STARTS WITH 'map_'`
+  - By line range: `WHERE af.start_line >= X AND af.end_line <= Y`
+- When asked "find all functions", default to named functions only UNLESS user mentions "callbacks", "hooks", "handlers", or "anonymous".
+
+**Critical: Caller File Path Resolution**
+
+When finding files that call a function, use the COALESCE+CASE pattern — it handles all caller types in one expression:
+
+```cypher
+MATCH (caller)-[:CALLS]->(target:Function|Method)
+WHERE toLower(target.name) = toLower('targetFunctionName')
+  AND (target.is_external IS NULL OR NOT target.is_external)
+OPTIONAL MATCH (m:Module)-[:DEFINES*1..4]->(caller)
+WITH caller, target,
+  coalesce(CASE WHEN caller:Module THEN caller.path ELSE null END, m.path) AS file_path
+WHERE file_path IS NOT NULL
+RETURN DISTINCT file_path, caller.name AS caller_name, target.name AS called_function
+LIMIT 50
+```
+
+**Why each part is necessary:**
+
+1. `CASE WHEN caller:Module THEN caller.path` — Module nodes hold direct CALLS edges when top-level code (outside any function) calls a function. Module nodes ARE the files themselves (they have `.path` directly). The `DEFINES` relationship does NOT exist from a Module to itself, so you cannot traverse to find the path — you must use it directly.
+
+2. `DEFINES*1..4` — AnonymousFunction nodes sit 2+ hops from their Module:
+   `Module -[:DEFINES]-> Function -[:DEFINES]-> AnonymousFunction`
+   Depth 1 (`DEFINES`) misses all anonymous function callers. Depth `*1..4` captures nesting up to 4 levels deep (sufficient for practical use; increase to 6 for Scala or deeply nested closures).
+
+3. `target.is_external IS NULL OR NOT target.is_external` — Internal nodes have `is_external` stored as `null` (not `false`). Writing `NOT target.is_external` evaluates to `null` and silently drops all internal nodes. Always use the null-safe form.
+
+**Caller type resolution summary:**
+- Module caller: `CASE WHEN caller:Module THEN caller.path` (direct property)
+- Function/Method caller: resolved via `OPTIONAL MATCH (m:Module)-[:DEFINES*1..4]->(caller)` then `m.path`
+- AnonymousFunction with DEFINES parent: resolved via `DEFINES*1..4` chain
+- AnonymousFunction orphaned (no DEFINES parent anywhere): NOT resolvable via traversal — requires separate data fix in call_processor.py"""
 
 
 def build_graph_schema_and_rules() -> str:
@@ -50,6 +144,8 @@ def build_graph_schema_and_rules() -> str:
 The database contains information about a codebase, structured with the following nodes and relationships.
 
 {GRAPH_SCHEMA_DEFINITION}
+
+{SCHEMA_SEMANTIC_NOTES}
 
 {CYPHER_QUERY_RULES}
 """
@@ -168,12 +264,43 @@ cypher// "find things related to 'database'"
 cypher// "Find the main README.md"
 {CYPHER_EXAMPLE_FIND_FILE}
 
-**Pattern: Finding Methods of a Class by Short Name**
-cypher// "What methods does UserService have?" or "Show me methods in UserService" or "List UserService methods"
-// Use `ENDS WITH` to match the class by short name since qualified_name contains full path.
+**Pattern: Finding Callers of a Function (Multi-hop with File Path)**
+cypher// "Who calls the function X?" or "find callers of Y"
+{CYPHER_EXAMPLE_FIND_CALLERS}
+
+**Pattern: Finding a Function with its File Path (Module Traversal)**
+cypher// "Find functions named 'search'" or "where is function X defined?"
+{CYPHER_EXAMPLE_FUNCTION_WITH_PATH}
+
+**Pattern: Finding Classes Defined in a Path**
+cypher// "Show classes in the models directory" or "list classes in src/models"
+{CYPHER_EXAMPLE_CLASSES_IN_PATH}
+
+**Pattern: Finding Methods of a Class (Multi-hop with File Path)**
+cypher// "What methods does UserService have?" or "list methods of class X"
 {CYPHER_EXAMPLE_CLASS_METHODS}
 
-**4. Output Format**
+**Pattern: Finding Anonymous Functions in a Module**
+cypher// "Find all anonymous functions in module X" or "Show callbacks in component"
+{CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS}
+
+**Pattern: Finding All Callers (Including Anonymous)**
+cypher// "Who calls handleSubmit?" or "Find all callers including callbacks"
+{CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE}
+
+**Pattern: Finding Parent Functions of Anonymous Functions**
+cypher// "What functions define map callbacks?" or "Show parent functions of hooks"
+{CYPHER_EXAMPLE_PARENT_FUNCTIONS}
+
+**Pattern: Tracing Anonymous Function Call Chains**
+cypher// "What do useEffect hooks call?" or "Show functions called by callbacks"
+{CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS}
+
+**Pattern: Finding Anonymous Functions by Line Range**
+cypher// "Find anonymous functions between lines 50-100" or "Show callbacks in line range"
+{CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE}
+
+**5. Output Format**
 Provide only the Cypher query.
 """
 
@@ -195,6 +322,12 @@ You are a Neo4j Cypher query generator. You ONLY respond with a valid Cypher que
 7.  **AGGREGATION QUERIES**: When asked "how many" or "count", return ONLY the count:
     - CORRECT: `MATCH (c:Class) RETURN count(c) AS total`
     - WRONG: `MATCH (c:Class) RETURN c.name, count(c) AS total` (returns all items!)
+8.  **AnonymousFunction Property Rules**:
+    - AnonymousFunction nodes have `start_line` and `end_line` properties (NOT `decorators`).
+    - Function and Method nodes have `decorators` property (NOT `start_line`/`end_line` in schema).
+    - When querying for "decorated functions" or "flows/tasks", use Function|Method nodes only.
+    - When querying by line number, use AnonymousFunction nodes.
+    - AnonymousFunction naming: Context prefix (jsx_, hook_, map_, returned_, ternary_, arrow_) + hash.
 
 **Examples:**
 
@@ -234,10 +367,46 @@ You are a Neo4j Cypher query generator. You ONLY respond with a valid Cypher que
     {CYPHER_EXAMPLE_LIMIT_ONE}
     ```
 
-*   **Natural Language:** "What methods does UserService have?" or "Show me methods in UserService" or "List UserService methods"
-*   **Cypher Query (Use ENDS WITH to match class by short name):**
+*   **Natural Language:** "Who calls the processData function?"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_FIND_CALLERS}
+    ```
+
+*   **Natural Language:** "Find functions with 'search' in the name and their file paths"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_FUNCTION_WITH_PATH}
+    ```
+
+*   **Natural Language:** "Show classes in the models directory"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_CLASSES_IN_PATH}
+    ```
+
+*   **Natural Language:** "What methods does UserService have?"
+*   **Cypher Query:**
     ```cypher
     {CYPHER_EXAMPLE_CLASS_METHODS}
+    ```
+
+*   **Natural Language:** "Find all useEffect hooks in module X"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS}
+    ```
+
+*   **Natural Language:** "Who calls handleSubmit including callbacks"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE}
+    ```
+
+*   **Natural Language:** "What functions define map callbacks"
+*   **Cypher Query:**
+    ```cypher
+    {CYPHER_EXAMPLE_PARENT_FUNCTIONS}
     ```
 """
 

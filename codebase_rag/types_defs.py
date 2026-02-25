@@ -459,6 +459,10 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         NodeLabel.METHOD,
         "{qualified_name: string, name: string, decorators: list[string]}",
     ),
+    NodeSchema(
+        NodeLabel.ANONYMOUS_FUNCTION,
+        "{qualified_name: string, name: string, start_line: integer, end_line: integer}",
+    ),
     NodeSchema(NodeLabel.INTERFACE, "{qualified_name: string, name: string}"),
     NodeSchema(NodeLabel.ENUM, "{qualified_name: string, name: string}"),
     NodeSchema(NodeLabel.TYPE, "{qualified_name: string, name: string}"),
@@ -499,12 +503,17 @@ RELATIONSHIP_SCHEMAS: tuple[RelationshipSchema, ...] = (
     RelationshipSchema(
         (NodeLabel.MODULE,),
         RelationshipType.DEFINES,
-        (NodeLabel.CLASS, NodeLabel.FUNCTION),
+        (NodeLabel.CLASS, NodeLabel.FUNCTION, NodeLabel.ANONYMOUS_FUNCTION),
     ),
     RelationshipSchema(
         (NodeLabel.CLASS,),
         RelationshipType.DEFINES_METHOD,
         (NodeLabel.METHOD,),
+    ),
+    RelationshipSchema(
+        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+        RelationshipType.DEFINES,
+        (NodeLabel.ANONYMOUS_FUNCTION,),
     ),
     RelationshipSchema(
         (NodeLabel.MODULE,),
@@ -552,7 +561,7 @@ RELATIONSHIP_SCHEMAS: tuple[RelationshipSchema, ...] = (
         (NodeLabel.EXTERNAL_PACKAGE,),
     ),
     RelationshipSchema(
-        (NodeLabel.FUNCTION, NodeLabel.METHOD),
+        (NodeLabel.FUNCTION, NodeLabel.METHOD, NodeLabel.ANONYMOUS_FUNCTION),
         RelationshipType.CALLS,
         (NodeLabel.FUNCTION, NodeLabel.METHOD),
     ),

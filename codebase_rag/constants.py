@@ -333,6 +333,7 @@ class NodeLabel(StrEnum):
     CLASS = "Class"
     FUNCTION = "Function"
     METHOD = "Method"
+    ANONYMOUS_FUNCTION = "AnonymousFunction"
     INTERFACE = "Interface"
     ENUM = "Enum"
     TYPE = "Type"
@@ -351,6 +352,7 @@ _NODE_LABEL_UNIQUE_KEYS: dict[NodeLabel, UniqueKeyType] = {
     NodeLabel.CLASS: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.FUNCTION: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.METHOD: UniqueKeyType.QUALIFIED_NAME,
+    NodeLabel.ANONYMOUS_FUNCTION: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.INTERFACE: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.ENUM: UniqueKeyType.QUALIFIED_NAME,
     NodeLabel.TYPE: UniqueKeyType.QUALIFIED_NAME,
@@ -967,6 +969,8 @@ CYPHER_PREFIX = "cypher"
 CYPHER_SEMICOLON = ";"
 CYPHER_BACKTICK = "`"
 CYPHER_MATCH_KEYWORD = "MATCH"
+CYPHER_CODE_BLOCK_PATTERN = r"```(?:cypher)?\s*(.*?)```"
+CYPHER_BOLD_MARKDOWN_PATTERN = r"\*\*[^\*]+\*\*:?\s*"
 
 # (H) Tool success messages
 MSG_SURGICAL_SUCCESS = "Successfully applied surgical code replacement in: {path}"

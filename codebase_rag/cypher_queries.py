@@ -51,9 +51,54 @@ LIMIT {CYPHER_DEFAULT_LIMIT}"""
 
 CYPHER_EXAMPLE_LIMIT_ONE = """MATCH (f:File) RETURN f.path as path, f.name as name, labels(f) as type LIMIT 1"""
 
-CYPHER_EXAMPLE_CLASS_METHODS = f"""MATCH (c:Class)-[:DEFINES_METHOD]->(m:Method)
-WHERE c.qualified_name ENDS WITH '.UserService'
-RETURN m.name AS name, m.qualified_name AS qualified_name, labels(m) AS type
+CYPHER_EXAMPLE_FIND_CALLERS = f"""MATCH (caller)-[:CALLS]->(target:Function|Method)
+WHERE toLower(target.name) = toLower('targetFunctionName')
+  AND (target.is_external IS NULL OR NOT target.is_external)
+OPTIONAL MATCH (m:Module)-[:DEFINES*1..4]->(caller)
+WITH caller, target,
+  coalesce(CASE WHEN caller:Module THEN caller.path ELSE null END, m.path) AS file_path
+WHERE file_path IS NOT NULL
+RETURN DISTINCT file_path, caller.name AS caller_name, target.name AS called_function
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_FUNCTION_WITH_PATH = f"""MATCH (m:Module)-[:DEFINES]->(f:Function)
+WHERE toLower(f.name) CONTAINS 'search'
+RETURN f.name AS function_name, f.qualified_name AS qualified_name, m.path AS file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_CLASSES_IN_PATH = f"""MATCH (m:Module)-[:DEFINES]->(c:Class)
+WHERE m.path STARTS WITH 'src/models'
+RETURN c.name AS class_name, c.qualified_name AS qualified_name, m.path AS file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_CLASS_METHODS = f"""MATCH (m:Module)-[:DEFINES]->(c:Class)-[:DEFINES_METHOD]->(method:Method)
+WHERE toLower(c.name) = 'userservice'
+RETURN method.name AS method_name, c.name AS class_name, m.path AS file_path
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_ANONYMOUS_FUNCTIONS = f"""MATCH (m:Module)-[:DEFINES]->(af:AnonymousFunction)
+WHERE m.qualified_name = 'myapp.components.button'
+RETURN af.qualified_name AS qualified_name, af.name AS name, af.start_line AS line
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_ANONYMOUS_CALLERS_WITH_TYPE = f"""MATCH (caller)-[:CALLS]->(fn:Function)
+WHERE toLower(fn.name) = 'handlesubmit'
+RETURN labels(caller)[0] AS caller_type, caller.qualified_name AS caller_qn, caller.name AS caller_name
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_PARENT_FUNCTIONS = f"""MATCH (parent:Function|Method)-[:DEFINES]->(af:AnonymousFunction)
+WHERE af.name STARTS WITH 'map_'
+RETURN parent.qualified_name AS parent_qn, af.qualified_name AS callback_qn, af.start_line AS line
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_ANONYMOUS_CALL_CHAINS = f"""MATCH (af:AnonymousFunction)-[:CALLS]->(target)
+WHERE af.name STARTS WITH 'hook_useEffect_'
+RETURN af.qualified_name AS hook_qn, target.name AS calls_function, labels(target)[0] AS target_type
+LIMIT {CYPHER_DEFAULT_LIMIT}"""
+
+CYPHER_EXAMPLE_ANONYMOUS_BY_LINE_RANGE = f"""MATCH (m:Module)-[:DEFINES*]->(af:AnonymousFunction)
+WHERE m.qualified_name = 'myapp.components.button' AND af.start_line >= 50 AND af.end_line <= 100
+RETURN af.qualified_name AS qualified_name, af.name AS name, af.start_line AS start_line, af.end_line AS end_line
 LIMIT {CYPHER_DEFAULT_LIMIT}"""
 
 CYPHER_EXPORT_NODES = """

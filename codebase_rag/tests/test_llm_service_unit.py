@@ -58,6 +58,28 @@ RETURN n.name"""
         assert result.endswith(";")
         assert "MATCH" in result
 
+    def test_strips_bold_markdown_prefix(self) -> None:
+        result = _clean_cypher_response("**Cypher Query:** MATCH (n) RETURN n")
+        assert result.startswith("MATCH")
+        assert "**" not in result
+
+    def test_strips_cypher_prefix_case_insensitive(self) -> None:
+        result = _clean_cypher_response("Cypher MATCH (n) RETURN n")
+        assert result.startswith("MATCH")
+
+    def test_extracts_from_unlabeled_code_block(self) -> None:
+        query = "```\nMATCH (n) RETURN n\n```"
+        result = _clean_cypher_response(query)
+        assert result == "MATCH (n) RETURN n;"
+
+    def test_extracts_from_code_block_with_surrounding_text(self) -> None:
+        query = "Here is the query:\n```cypher\nMATCH (n) RETURN n;\n```\nThis finds all nodes."
+        result = _clean_cypher_response(query)
+        assert result.startswith("MATCH")
+        assert result.endswith(";")
+        assert "```" not in result
+        assert "Here is" not in result
+
 
 class TestCypherGenerator:
     @patch("codebase_rag.services.llm.settings")
