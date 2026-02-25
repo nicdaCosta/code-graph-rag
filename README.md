@@ -2,7 +2,7 @@
   <picture>
     <source srcset="assets/logo-dark-any.png" media="(prefers-color-scheme: dark)">
     <source srcset="assets/logo-light-any.png" media="(prefers-color-scheme: light)">
-    <img src="assets/logo-dark.png" alt="Graph-Code Logo" width="480">
+    <img src="assets/logo-dark-any.png" alt="Code-Graph-RAG Logo" width="480">
   </picture>
 
   <p>
@@ -24,16 +24,18 @@
 </p>
 </div>
 
-# Graph-Code: A Graph-Based RAG System for Any Codebases
+# Code-Graph-RAG: A Graph-Based RAG System for Any Codebases
 
 An accurate Retrieval-Augmented Generation (RAG) system that analyzes multi-language codebases using Tree-sitter, builds comprehensive knowledge graphs, and enables natural language querying of codebase structure and relationships as well as editing capabilities.
 
 
-![demo](./assets/demo.gif)
+<p align="center">
+  <img src="./assets/demo.gif" alt="demo">
+</p>
 
 ## Latest News 🔥
 
-- **[NEW]** **MCP Server Integration**: Graph-Code now works as an MCP server with Claude Code! Query and edit your codebase using natural language directly from Claude Code. [Setup Guide](docs/claude-code-setup.md)
+- **[NEW]** **MCP Server Integration**: Code-Graph-RAG now works as an MCP server with Claude Code! Query and edit your codebase using natural language directly from Claude Code. [Setup Guide](docs/claude-code-setup.md)
 - [2025/10/21] **Semantic Code Search**: Added intent-based code search using UniXcoder embeddings. Find functions by describing what they do (e.g., "error handling functions", "authentication code") rather than by exact names.
 
 ## 🚀 Features
@@ -58,8 +60,8 @@ An accurate Retrieval-Augmented Generation (RAG) system that analyzes multi-lang
 - **🌳 Tree-sitter Parsing**: Uses Tree-sitter for robust, language-agnostic AST parsing
 - **📊 Knowledge Graph Storage**: Uses Memgraph to store codebase structure as an interconnected graph
 - **🗣️ Natural Language Querying**: Ask questions about your codebase in plain English
-- **🤖 AI-Powered Cypher Generation**: Supports both cloud models (Google Gemini), local models (Ollama), and OpenAI models for natural language to Cypher translation
-- **🤖 OpenAI Integration**: Leverage OpenAI models to enhance AI functionalities.
+- **🤖 AI-Powered Cypher Generation**: Supports cloud models (Google Gemini, Anthropic Claude), local models (Ollama), and OpenAI models for natural language to Cypher translation
+- **🤖 Multiple LLM Providers**: Supports OpenAI, Anthropic Claude, Google Gemini, and Ollama with flexible authentication (direct API keys, Claude Code settings, or proxy services like Portkey)
 - **📝 Code Snippet Retrieval**: Retrieves actual source code snippets for found functions/methods
 - **✍️ Advanced File Editing**: Surgical code replacement with AST-based function targeting, visual diff previews, and exact code block modifications
 - **⚡️ Shell Command Execution**: Can execute terminal commands for tasks like running tests or using CLI tools.
@@ -195,6 +197,55 @@ CYPHER_MODEL=codellama
 CYPHER_ENDPOINT=http://localhost:11434/v1
 ```
 
+#### Option 5: Anthropic Claude Models
+
+Anthropic Claude is now supported with multiple authentication methods:
+
+**5a. Direct API Key (recommended for development)**:
+```bash
+# .env file
+ORCHESTRATOR_PROVIDER=anthropic
+ORCHESTRATOR_MODEL=claude-sonnet-4.5-20250929
+ORCHESTRATOR_API_KEY=sk-ant-your-key
+
+CYPHER_PROVIDER=anthropic
+CYPHER_MODEL=claude-haiku-4-20250514
+CYPHER_API_KEY=sk-ant-your-key
+```
+
+**5b. Claude Code Settings (automatic)**:
+If you're using Claude Code CLI, the provider will automatically read from `~/.claude/settings.json`. Just set the provider and model:
+```bash
+# .env file
+ORCHESTRATOR_PROVIDER=anthropic
+ORCHESTRATOR_MODEL=claude-sonnet-4.5-20250929
+
+CYPHER_PROVIDER=anthropic
+CYPHER_MODEL=claude-haiku-4-20250514
+# No API key needed - uses ANTHROPIC_BASE_URL and ANTHROPIC_CUSTOM_HEADERS from settings
+```
+
+**5c. Portkey or Other Proxies (for enterprise)**:
+For centralized key management systems like Portkey:
+```bash
+# .env file
+ORCHESTRATOR_PROVIDER=anthropic
+ORCHESTRATOR_MODEL=claude-sonnet-4.5-20250929
+ORCHESTRATOR_ENDPOINT=https://your-portkey-gateway.com
+ORCHESTRATOR_CUSTOM_HEADERS="x-portkey-api-key: pk-xxx\nx-portkey-config: pc-xxx"
+
+CYPHER_PROVIDER=anthropic
+CYPHER_MODEL=claude-haiku-4-20250514
+CYPHER_ENDPOINT=https://your-portkey-gateway.com
+CYPHER_CUSTOM_HEADERS="x-portkey-api-key: pk-xxx\nx-portkey-config: pc-xxx"
+```
+
+**Recommended Anthropic Models**:
+- **Orchestrator**: `claude-opus-4.5-20251101` (most capable) or `claude-sonnet-4.5-20250929` (balanced)
+- **Cypher**: `claude-sonnet-4.5-20250929` or `claude-haiku-4-20250514` (faster, cheaper)
+
+Get your Anthropic API key from [Anthropic Console](https://console.anthropic.com/).
+
 Get your Google API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 
 **Install and run Ollama**:
@@ -244,11 +295,12 @@ Use the Makefile for common development tasks:
 | `make format` | Run ruff format |
 | `make typecheck` | Run type checking with ty |
 | `make check` | Run all checks: lint, typecheck, test |
+| `make pre-commit` | Run all pre-commit checks locally (comprehensive test before commit) |
 <!-- /SECTION:makefile_commands -->
 
 ## 🎯 Usage
 
-The Graph-Code system offers four main modes of operation:
+The Code-Graph-RAG system offers four main modes of operation:
 1. **Parse & Ingest**: Build knowledge graph from your codebase
 2. **Interactive Query**: Ask questions about your code in natural language
 3. **Export & Analyze**: Export graph data for programmatic analysis
@@ -508,17 +560,17 @@ The agent will incorporate the guidance from your reference documents when sugge
 
 ## 🔌 MCP Server (Claude Code Integration)
 
-Graph-Code can run as an MCP (Model Context Protocol) server, enabling seamless integration with Claude Code and other MCP clients.
+Code-Graph-RAG can run as an MCP (Model Context Protocol) server, enabling seamless integration with Claude Code and other MCP clients.
 
 ### Quick Setup
 
 ```bash
-claude mcp add --transport stdio graph-code \
+claude mcp add --transport stdio code-graph-rag \
   --env TARGET_REPO_PATH=/absolute/path/to/your/project \
   --env CYPHER_PROVIDER=openai \
   --env CYPHER_MODEL=gpt-4 \
   --env CYPHER_API_KEY=your-api-key \
-  -- uv run --directory /path/to/code-graph-rag graph-code mcp-server
+  -- uv run --directory /path/to/code-graph-rag code-graph-rag mcp-server
 ```
 
 ### Available Tools
@@ -689,6 +741,7 @@ my_build_output
 - **click**: Composable command line interface toolkit
 - **protobuf**
 - **defusedxml**: XML bomb protection for Python stdlib modules
+- **huggingface-hub**: Client library to download and publish models, datasets and other repos on the huggingface.co hub
 <!-- /SECTION:dependencies -->
 
 ## 🤖 Agentic Workflow & Tools
@@ -729,7 +782,7 @@ The agent uses AST-based function targeting with Tree-sitter for precise code mo
 
 ### Adding New Languages
 
-Graph-Code makes it easy to add support for any language that has a Tree-sitter grammar. The system automatically handles grammar compilation and integration.
+Code-Graph-RAG makes it easy to add support for any language that has a Tree-sitter grammar. The system automatically handles grammar compilation and integration.
 
 > **⚠️ Recommendation**: While you can add languages yourself, we recommend waiting for official full support to ensure optimal parsing quality, comprehensive feature coverage, and robust integration. The languages marked as "In Development" above will receive dedicated optimization and testing.
 
@@ -873,14 +926,14 @@ For issues or questions:
 
 ## 💼 Enterprise Services
 
-Graph-Code is open source and free to use. For organizations that need additional support, we offer:
+Code-Graph-RAG is open source and free to use. For organizations that need more, we offer **fully managed cloud-hosted solutions** and **on-premise deployments**:
 
-- **Technical Support Contracts** — Custom SLAs, priority issue resolution, and dedicated assistance
-- **Integration Consulting** — Help deploying Graph-Code in your infrastructure and integrating with your toolchain
-- **Custom Development** — Tailored features, new language support, and workflow optimization for your specific codebase
-- **Training & Onboarding** — Get your team up to speed with hands-on training sessions
+- **Cloud-Hosted Deployment** — Managed cloud infrastructure for both the graph database and AI agent connection. Zero infrastructure overhead — we handle scaling, updates, and availability so your team can focus on building.
+- **On-Premise & Air-Gapped Deployment** — Deploy Code-Graph-RAG entirely within your own environment, including air-gapped networks. Full data sovereignty for regulated industries and security-sensitive organizations.
 
-**[Learn more at code-graph-rag.com →](https://code-graph-rag.com)**
+We also offer custom development, integration consulting, technical support contracts, and team training.
+
+**[View plans & pricing at code-graph-rag.com →](https://code-graph-rag.com/enterprise)**
 
 ## Star History
 
