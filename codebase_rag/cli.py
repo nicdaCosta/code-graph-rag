@@ -130,11 +130,11 @@ def start(
     effective_batch_size = settings.resolve_batch_size(batch_size)
 
     if update_graph:
-        if log_file:
-            log_path = Path(log_file)
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            logger.add(str(log_path), level="DEBUG", format=cs.LOG_FORMAT)
-            logger.info(ls.SCAN_LOG_FILE_CONFIGURED.format(path=log_path))
+        effective_log_file = log_file or cs.CLI_LOG_FILE_DEFAULT
+        log_path = Path(effective_log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.add(str(log_path), level="DEBUG", format=cs.LOG_FORMAT)
+        logger.info(ls.SCAN_LOG_FILE_CONFIGURED.format(path=log_path))
         repo_to_update = Path(target_repo_path)
         _info(
             style(cs.CLI_MSG_UPDATING_GRAPH.format(path=repo_to_update), cs.Color.GREEN)
