@@ -335,6 +335,16 @@ cgr start --repo-path /path/to/repo --update-graph \
   --batch-size 5000
 ```
 
+**Partial scan — update only specific files:**
+```bash
+# Re-index only the files that changed, instead of the full repo
+cgr start --repo-path /path/to/repo --update-graph \
+  --files src/services/payment.py \
+  --files src/models/invoice.py
+```
+
+> **Note:** Partial scans are best suited for additive changes (new functions, new files in existing directories). They do not remove orphaned nodes from renamed or deleted symbols. After significant refactoring, run a full rescan with `--clean`. See [docs/partial-scan.md](docs/partial-scan.md) for details and gotchas.
+
 The system automatically detects and processes files for all supported languages (see Multi-Language Support section).
 
 ### Step 2: Query the Codebase
