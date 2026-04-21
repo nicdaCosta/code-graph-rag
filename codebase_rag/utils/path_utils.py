@@ -1,9 +1,9 @@
-import re
 import subprocess
 from functools import lru_cache
 from pathlib import Path
 
 from loguru import logger
+from pathspec import PathSpec
 
 from .. import constants as cs
 from .. import logs as ls
@@ -16,77 +16,15 @@ def _is_glob_pattern(pattern: str) -> bool:
     return any(c in _GLOB_META for c in pattern)
 
 
-@lru_cache(maxsize=256)
-def _compile_glob(pattern: str) -> re.Pattern[str]:
-    """Compile a gitignore-style glob pattern to an anchored regex.
+@lru_cache(maxsize=64)
+def _compile_pathspec(patterns: tuple[str, ...]) -> PathSpec:
+    """Compile a tuple of gitignore-style patterns into a PathSpec.
 
-    Supported syntax:
-      * ``*``    — any sequence of characters except ``/``
-      * ``**``   — any number of path segments (including zero)
-      * ``?``    — any single character except ``/``
-      * ``[abc]`` / ``[a-z]`` — character class, ``[!...]`` for negation
-
-    Semantics mirror gitignore:
-      * patterns containing ``/`` are anchored to the relative-path root
-      * patterns without ``/`` match against *any* path component
+    The call-site passes a sorted tuple so the cache is stable across
+    identical pattern sets (a full index may call ``should_skip_path``
+    many thousands of times).
     """
-    i, n = 0, len(pattern)
-    parts: list[str] = []
-    while i < n:
-        c = pattern[i]
-        if c == "*":
-            if i + 1 < n and pattern[i + 1] == "*":
-                # '**' matches any number of path segments.
-                i += 2
-                if i < n and pattern[i] == "/":
-                    # '**/' — zero or more path segments, trailing slash included.
-                    parts.append("(?:.*/|)")
-                    i += 1
-                else:
-                    parts.append(".*")
-            else:
-                parts.append("[^/]*")
-                i += 1
-        elif c == "?":
-            parts.append("[^/]")
-            i += 1
-        elif c == "[":
-            j = i + 1
-            if j < n and pattern[j] == "!":
-                parts.append("[^")
-                j += 1
-            else:
-                parts.append("[")
-            while j < n and pattern[j] != "]":
-                parts.append(pattern[j])
-                j += 1
-            parts.append("]")
-            i = j + 1
-        else:
-            parts.append(re.escape(c))
-            i += 1
-    regex = "".join(parts)
-    if "/" not in pattern:
-        regex = r"(?:.*/|)" + regex
-    return re.compile(r"\A" + regex + r"\Z")
-
-
-def _matches_any_glob(patterns: tuple[str, ...], rel_path_str: str) -> bool:
-    """True if *rel_path_str* (or any ancestor path) matches any glob.
-
-    Matching ancestors means a directory-targeting pattern like
-    ``**/__mocks__`` also excludes everything inside it, mirroring
-    literal-directory behaviour and gitignore semantics.
-    """
-    compiled = [_compile_glob(p) for p in patterns]
-    candidate = rel_path_str
-    while True:
-        if any(rx.match(candidate) for rx in compiled):
-            return True
-        parent, sep, _ = candidate.rpartition("/")
-        if not sep:
-            return False
-        candidate = parent
+    return PathSpec.from_lines("gitignore", patterns)
 
 
 def discover_repo_files(repo_path: Path) -> list[Path]:
@@ -132,12 +70,17 @@ def should_skip_path(
         literal_excludes = frozenset(
             p for p in exclude_paths if not _is_glob_pattern(p)
         )
-        glob_excludes = tuple(p for p in exclude_paths if _is_glob_pattern(p))
+        glob_excludes = tuple(
+            sorted(p for p in exclude_paths if _is_glob_pattern(p))
+        )
         if (
             not literal_excludes.isdisjoint(dir_parts)
             or rel_path_str in literal_excludes
             or any(rel_path_str.startswith(f"{p}/") for p in literal_excludes)
-            or (glob_excludes and _matches_any_glob(glob_excludes, rel_path_str))
+            or (
+                glob_excludes
+                and _compile_pathspec(glob_excludes).match_file(rel_path_str)
+            )
         ):
             return True
 
@@ -145,13 +88,18 @@ def should_skip_path(
         literal_unignores = frozenset(
             p for p in unignore_paths if not _is_glob_pattern(p)
         )
-        glob_unignores = tuple(p for p in unignore_paths if _is_glob_pattern(p))
+        glob_unignores = tuple(
+            sorted(p for p in unignore_paths if _is_glob_pattern(p))
+        )
         if (
             any(
                 rel_path_str == p or rel_path_str.startswith(f"{p}/")
                 for p in literal_unignores
             )
-            or (glob_unignores and _matches_any_glob(glob_unignores, rel_path_str))
+            or (
+                glob_unignores
+                and _compile_pathspec(glob_unignores).match_file(rel_path_str)
+            )
         ):
             return False
 
