@@ -394,7 +394,7 @@ message GraphCodeIndex {
     string qualified_name = 1;
 
     string name = 2;
-    repeated string parameters = 3;
+    string parameters = 3;
     int32 start_line = 4;
     int32 end_line = 5;
   }
@@ -404,7 +404,7 @@ message GraphCodeIndex {
     string qualified_name = 1;
 
     string name = 2;
-    repeated string parameters = 3;
+    string parameters = 3;
     int32 start_line = 4;
     int32 end_line = 5;
   }

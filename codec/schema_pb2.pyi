@@ -437,10 +437,10 @@ class ScssMixin(_message.Message):
     END_LINE_FIELD_NUMBER: _ClassVar[int]
     qualified_name: str
     name: str
-    parameters: _containers.RepeatedScalarFieldContainer[str]
+    parameters: str
     start_line: int
     end_line: int
-    def __init__(self, qualified_name: _Optional[str] = ..., name: _Optional[str] = ..., parameters: _Optional[_Iterable[str]] = ..., start_line: _Optional[int] = ..., end_line: _Optional[int] = ...) -> None: ...
+    def __init__(self, qualified_name: _Optional[str] = ..., name: _Optional[str] = ..., parameters: _Optional[str] = ..., start_line: _Optional[int] = ..., end_line: _Optional[int] = ...) -> None: ...
 
 class ScssFunction(_message.Message):
     __slots__ = ()
@@ -451,10 +451,10 @@ class ScssFunction(_message.Message):
     END_LINE_FIELD_NUMBER: _ClassVar[int]
     qualified_name: str
     name: str
-    parameters: _containers.RepeatedScalarFieldContainer[str]
+    parameters: str
     start_line: int
     end_line: int
-    def __init__(self, qualified_name: _Optional[str] = ..., name: _Optional[str] = ..., parameters: _Optional[_Iterable[str]] = ..., start_line: _Optional[int] = ..., end_line: _Optional[int] = ...) -> None: ...
+    def __init__(self, qualified_name: _Optional[str] = ..., name: _Optional[str] = ..., parameters: _Optional[str] = ..., start_line: _Optional[int] = ..., end_line: _Optional[int] = ...) -> None: ...
 
 class MediaQuery(_message.Message):
     __slots__ = ()
