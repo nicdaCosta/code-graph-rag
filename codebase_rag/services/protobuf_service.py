@@ -22,6 +22,29 @@ LABEL_TO_ONEOF_FIELD: dict[cs.NodeLabel, str] = {
     cs.NodeLabel.EXTERNAL_PACKAGE: cs.ONEOF_EXTERNAL_PACKAGE,
     cs.NodeLabel.MODULE_IMPLEMENTATION: cs.ONEOF_MODULE_IMPLEMENTATION,
     cs.NodeLabel.MODULE_INTERFACE: cs.ONEOF_MODULE_INTERFACE,
+    # Typescript / language-level type declarations.
+    cs.NodeLabel.INTERFACE: cs.ONEOF_INTERFACE,
+    cs.NodeLabel.ENUM: cs.ONEOF_ENUM,
+    cs.NodeLabel.TYPE: cs.ONEOF_TYPE,
+    cs.NodeLabel.UNION: cs.ONEOF_UNION,
+    cs.NodeLabel.ANONYMOUS_FUNCTION: cs.ONEOF_ANONYMOUS_FUNCTION,
+    # CSS / SCSS.
+    cs.NodeLabel.CSS_RULE: cs.ONEOF_CSS_RULE,
+    cs.NodeLabel.CSS_SELECTOR: cs.ONEOF_CSS_SELECTOR,
+    cs.NodeLabel.CSS_VARIABLE: cs.ONEOF_CSS_VARIABLE,
+    cs.NodeLabel.SCSS_VARIABLE: cs.ONEOF_SCSS_VARIABLE,
+    cs.NodeLabel.SCSS_MIXIN: cs.ONEOF_SCSS_MIXIN,
+    cs.NodeLabel.SCSS_FUNCTION: cs.ONEOF_SCSS_FUNCTION,
+    cs.NodeLabel.MEDIA_QUERY: cs.ONEOF_MEDIA_QUERY,
+    cs.NodeLabel.KEYFRAME_ANIMATION: cs.ONEOF_KEYFRAME_ANIMATION,
+    # HTML.
+    cs.NodeLabel.HTML_ELEMENT: cs.ONEOF_HTML_ELEMENT,
+    # React / CSS-in-JS.
+    cs.NodeLabel.REACT_COMPONENT: cs.ONEOF_REACT_COMPONENT,
+    cs.NodeLabel.REACT_HOOK: cs.ONEOF_REACT_HOOK,
+    cs.NodeLabel.REACT_CONTEXT: cs.ONEOF_REACT_CONTEXT,
+    cs.NodeLabel.STYLED_COMPONENT: cs.ONEOF_STYLED_COMPONENT,
+    cs.NodeLabel.CSS_IN_JS_RULE: cs.ONEOF_CSS_IN_JS_RULE,
 }
 
 ONEOF_FIELD_TO_LABEL: dict[str, cs.NodeLabel] = {
@@ -29,7 +52,12 @@ ONEOF_FIELD_TO_LABEL: dict[str, cs.NodeLabel] = {
 }
 
 PATH_BASED_LABELS = frozenset({cs.NodeLabel.FOLDER, cs.NodeLabel.FILE})
-NAME_BASED_LABELS = frozenset({cs.NodeLabel.EXTERNAL_PACKAGE, cs.NodeLabel.PROJECT})
+# CssSelector is identified by name (matches Bolt path's unique-key config).
+NAME_BASED_LABELS = frozenset({
+    cs.NodeLabel.EXTERNAL_PACKAGE,
+    cs.NodeLabel.PROJECT,
+    cs.NodeLabel.CSS_SELECTOR,
+})
 
 
 class ProtobufFileIngestor:
