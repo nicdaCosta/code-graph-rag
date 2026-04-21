@@ -74,7 +74,13 @@ HELP_GRAMMAR_URL = (
 HELP_KEEP_SUBMODULE = "Keep the git submodule (default: remove it)"
 
 HELP_EXCLUDE_PATTERNS = (
-    "Additional directories to exclude from indexing. Can be specified multiple times."
+    "Additional paths to exclude from indexing. Accepts either a literal "
+    "directory segment (e.g. 'build') or a gitignore-style glob matched "
+    "against the repo-relative path: '*' = any chars except '/', '**' = "
+    "any number of path segments, '?' = single char, '[abc]' = char class. "
+    "A pattern without '/' matches against any path component, "
+    "'**/__mocks__' matches '__mocks__' at any depth, '**/*.test.ts' "
+    "matches test files anywhere. Can be specified multiple times."
 )
 HELP_INTERACTIVE_SETUP = (
     "Show interactive prompt to select which detected directories to keep. "
