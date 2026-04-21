@@ -217,6 +217,29 @@ ONEOF_FILE = "file"
 ONEOF_EXTERNAL_PACKAGE = "external_package"
 ONEOF_MODULE_IMPLEMENTATION = "module_implementation"
 ONEOF_MODULE_INTERFACE = "module_interface"
+# Typescript / language-level type declarations
+ONEOF_INTERFACE = "interface_node"
+ONEOF_ENUM = "enum_node"
+ONEOF_TYPE = "type_node"
+ONEOF_UNION = "union_node"
+ONEOF_ANONYMOUS_FUNCTION = "anonymous_function"
+# CSS / SCSS
+ONEOF_CSS_RULE = "css_rule"
+ONEOF_CSS_SELECTOR = "css_selector"
+ONEOF_CSS_VARIABLE = "css_variable"
+ONEOF_SCSS_VARIABLE = "scss_variable"
+ONEOF_SCSS_MIXIN = "scss_mixin"
+ONEOF_SCSS_FUNCTION = "scss_function"
+ONEOF_MEDIA_QUERY = "media_query"
+ONEOF_KEYFRAME_ANIMATION = "keyframe_animation"
+# HTML
+ONEOF_HTML_ELEMENT = "html_element"
+# React / CSS-in-JS
+ONEOF_REACT_COMPONENT = "react_component"
+ONEOF_REACT_HOOK = "react_hook"
+ONEOF_REACT_CONTEXT = "react_context"
+ONEOF_STYLED_COMPONENT = "styled_component"
+ONEOF_CSS_IN_JS_RULE = "css_in_js_rule"
 
 CLI_ERR_OUTPUT_REQUIRES_UPDATE = (
     "Error: --output/-o option requires --update-graph to be specified."
