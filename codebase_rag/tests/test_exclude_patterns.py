@@ -426,6 +426,95 @@ class TestShouldSkipPath:
         assert not should_skip_path(file_path, tmp_path)
 
 
+class TestExcludeGlobPatterns:
+    """Gitignore-style glob patterns in --exclude / .cgrignore."""
+
+    def _touch(self, tmp_path: Path, rel: str) -> Path:
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.touch()
+        return p
+
+    def test_star_matches_filename_at_any_depth(self, tmp_path: Path) -> None:
+        deep = self._touch(tmp_path, "src/components/Button.test.ts")
+        shallow = self._touch(tmp_path, "Button.test.ts")
+        keep = self._touch(tmp_path, "src/Button.ts")
+
+        excludes = frozenset({"*.test.ts"})
+        assert should_skip_path(deep, tmp_path, exclude_paths=excludes)
+        assert should_skip_path(shallow, tmp_path, exclude_paths=excludes)
+        assert not should_skip_path(keep, tmp_path, exclude_paths=excludes)
+
+    def test_double_star_matches_any_depth(self, tmp_path: Path) -> None:
+        deep = self._touch(tmp_path, "a/b/c/__mocks__/mock.ts")
+        shallow = self._touch(tmp_path, "__mocks__/mock.ts")
+        keep = self._touch(tmp_path, "a/mocks/mock.ts")
+
+        excludes = frozenset({"**/__mocks__"})
+        assert should_skip_path(deep, tmp_path, exclude_paths=excludes)
+        assert should_skip_path(shallow, tmp_path, exclude_paths=excludes)
+        assert not should_skip_path(keep, tmp_path, exclude_paths=excludes)
+
+    def test_double_star_middle_allows_zero_segments(self, tmp_path: Path) -> None:
+        at_root = self._touch(tmp_path, "src/foo.ts")
+        nested = self._touch(tmp_path, "src/a/b/foo.ts")
+        wrong_ext = self._touch(tmp_path, "src/a/foo.js")
+
+        excludes = frozenset({"src/**/*.ts"})
+        assert should_skip_path(at_root, tmp_path, exclude_paths=excludes)
+        assert should_skip_path(nested, tmp_path, exclude_paths=excludes)
+        assert not should_skip_path(wrong_ext, tmp_path, exclude_paths=excludes)
+
+    def test_anchored_glob_does_not_match_nested_parent(
+        self, tmp_path: Path
+    ) -> None:
+        # 'src/*.ts' is anchored (contains '/'), must match src/ at root.
+        root_match = self._touch(tmp_path, "src/foo.ts")
+        nested = self._touch(tmp_path, "a/src/foo.ts")
+
+        excludes = frozenset({"src/*.ts"})
+        assert should_skip_path(root_match, tmp_path, exclude_paths=excludes)
+        assert not should_skip_path(nested, tmp_path, exclude_paths=excludes)
+
+    def test_char_class_match(self, tmp_path: Path) -> None:
+        a = self._touch(tmp_path, "afoo.ts")
+        b = self._touch(tmp_path, "bfoo.ts")
+        d = self._touch(tmp_path, "dfoo.ts")
+
+        excludes = frozenset({"[ab]foo.ts"})
+        assert should_skip_path(a, tmp_path, exclude_paths=excludes)
+        assert should_skip_path(b, tmp_path, exclude_paths=excludes)
+        assert not should_skip_path(d, tmp_path, exclude_paths=excludes)
+
+    def test_negated_char_class(self, tmp_path: Path) -> None:
+        a = self._touch(tmp_path, "afoo.ts")
+        d = self._touch(tmp_path, "dfoo.ts")
+
+        excludes = frozenset({"[!ab]foo.ts"})
+        assert not should_skip_path(a, tmp_path, exclude_paths=excludes)
+        assert should_skip_path(d, tmp_path, exclude_paths=excludes)
+
+    def test_mixed_literal_and_glob_patterns(self, tmp_path: Path) -> None:
+        lit = self._touch(tmp_path, "build/out.js")
+        glob_hit = self._touch(tmp_path, "src/x.test.ts")
+        keep = self._touch(tmp_path, "src/x.ts")
+
+        excludes = frozenset({"build", "**/*.test.ts"})
+        assert should_skip_path(lit, tmp_path, exclude_paths=excludes)
+        assert should_skip_path(glob_hit, tmp_path, exclude_paths=excludes)
+        assert not should_skip_path(keep, tmp_path, exclude_paths=excludes)
+
+    def test_glob_on_directory(self, tmp_path: Path) -> None:
+        # When should_skip_path is called on a directory (path.is_dir()),
+        # dir_parts is the path's own parts, not its parent's. The glob
+        # matcher still matches the relative path string.
+        (tmp_path / "src" / "__mocks__").mkdir(parents=True)
+        mock_dir = tmp_path / "src" / "__mocks__"
+        assert should_skip_path(
+            mock_dir, tmp_path, exclude_paths=frozenset({"**/__mocks__"})
+        )
+
+
 class TestUnignoreExcludeInteraction:
     @pytest.mark.parametrize(
         ("path_str", "unignore_paths", "exclude_paths"),
