@@ -63,7 +63,14 @@ NAME_BASED_LABELS = frozenset({
 class ProtobufFileIngestor:
     def __init__(self, output_path: str, split_index: bool = False):
         self.output_dir = Path(output_path)
-        self._nodes: dict[str, pb.Node] = {}
+        # Keyed by (label, id) so different labels occupy different key
+        # spaces — matching how the Memgraph/Bolt ingester behaves (Memgraph
+        # treats labels as separate indexes). Keying by id alone caused
+        # ReactComponent / StyledComponent / etc. to be silently dropped
+        # whenever a Function node with the same qualified_name had already
+        # been batched (top-level arrow-function components: the Function
+        # entry from _ingest_assignment_arrow_functions always lands first).
+        self._nodes: dict[tuple[cs.NodeLabel, str], pb.Node] = {}
         self._relationships: dict[tuple[str, int, str], pb.Relationship] = {}
         self.split_index = split_index
         logger.info(ls.PROTOBUF_INIT.format(path=self.output_dir))
@@ -78,7 +85,7 @@ class ProtobufFileIngestor:
     def ensure_node_batch(self, label: str, properties: PropertyDict) -> None:
         node_label = cs.NodeLabel(label)
         node_id = self._get_node_id(node_label, properties)
-        if not node_id or node_id in self._nodes:
+        if not node_id or (node_label, node_id) in self._nodes:
             return
 
         payload_message_class = getattr(pb, label, None)
@@ -107,7 +114,7 @@ class ProtobufFileIngestor:
 
         getattr(node, payload_field_name).CopyFrom(payload_message)
 
-        self._nodes[node_id] = node
+        self._nodes[(node_label, node_id)] = node
 
     def ensure_relationship_batch(
         self,
